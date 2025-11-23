@@ -1,0 +1,102 @@
+
+/* Custom Overlay Fixes */
+.fixed { position: fixed !important; }
+.top-0 { top: 0 !important; }
+.left-0 { left: 0 !important; }
+.w-full { width: 100% !important; }
+.h-full { height: 100% !important; }
+.z-\[9999\] { z-index: 9999 !important; }
+.z-\[10000\] { z-index: 10000 !important; }
+.bg-opacity-90 { --tw-bg-opacity: 0.9 !important; background-color: rgba(0,0,0,0.9) !important; }
+.backdrop-blur-sm { backdrop-filter: blur(4px) !important; -webkit-backdrop-filter: blur(4px) !important; }
+
+/* SVG Dimensions Patch */
+.w-8 { width: 2rem !important; }
+.h-8 { height: 2rem !important; }
+.w-16 { width: 4rem !important; }
+.h-16 { height: 4rem !important; }
+.w-5 { width: 1.25rem !important; }
+.h-5 { height: 1.25rem !important; }
+.w-4 { width: 1rem !important; }
+.h-4 { height: 1rem !important; }
+.w-3\.5 { width: 0.875rem !important; }
+.h-3\.5 { height: 0.875rem !important; }
+
+/* Input polish */
+input[type="url"]::placeholder { opacity: 0.5; }
+input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important; }
+
+/* Card hover subtle effect */
+.group:hover { transform: translateY(-2px); }
+
+/* 
+   RESPONSIVE CUSTOM STYLES 
+   Emulating Tailwind breakpoints but with custom CSS
+*/
+
+/* Mobile (Default/Small screens) */
+@media (max-width: 639px) {
+    /* Adjust main container padding */
+    #main-content {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        padding-top: 1.5rem !important;
+    }
+
+    /* Input Section Adjustments */
+    #input-section {
+        margin-bottom: 2rem !important;
+    }
+
+    /* Ensure inputs are touch-friendly (16px prevent zoom) */
+    input[type="url"], 
+    input#searchInput {
+        font-size: 16px !important;
+        padding-top: 0.75rem !important;
+        padding-bottom: 0.75rem !important;
+    }
+
+    /* Cards Layout for Mobile */
+    #episodesGrid {
+        grid-template-columns: 1fr !important; /* Force 1 column */
+        gap: 1rem !important; /* Smaller gap */
+    }
+
+    .episode-card {
+        border-radius: 0.5rem !important; /* Slightly less rounded on mobile */
+    }
+
+    /* Adjust title size for mobile */
+    .episode-title {
+        font-size: 1rem !important;
+        line-height: 1.4 !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Hide non-essential elements if needed, or adjust spacing */
+    .p-5 {
+        padding: 1rem !important; /* Reduce padding inside cards */
+    }
+}
+
+/* Tablet (sm: 640px) */
+@media (min-width: 640px) and (max-width: 1023px) {
+    #episodesGrid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 1.5rem !important;
+    }
+}
+
+/* Desktop (lg: 1024px) */
+@media (min-width: 1024px) {
+    #episodesGrid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+}
+
+/* Large Desktop (xl: 1280px) */
+@media (min-width: 1280px) {
+    #episodesGrid {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+}

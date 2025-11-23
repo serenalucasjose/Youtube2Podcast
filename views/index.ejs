@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Youtube2Podcast</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/custom.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col">
+
+    <nav class="bg-gray-800 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-red-500">Youtube2Podcast</h1>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow container mx-auto px-4 py-8" id="main-content">
+        
+        <!-- Input Section -->
+        <div class="max-w-2xl mx-auto mb-12" id="input-section">
+            <form action="/add" method="POST" class="flex gap-4 mb-6" onsubmit="document.getElementById('add-btn').disabled = true; document.getElementById('add-btn').innerText = 'Procesando...';">
+                <input type="url" name="url" placeholder="Pegar URL de YouTube aquí..." required 
+                    class="flex-grow px-4 py-3 rounded-lg bg-gray-800 border border-gray-700 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition duration-200 text-white placeholder-gray-400">
+                <button id="add-btn" type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 shadow-lg transform hover:scale-105">
+                    Agregar
+                </button>
+            </form>
+            
+            <!-- Search Input -->
+            <input type="text" id="searchInput" placeholder="Buscar episodios..." 
+                class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-gray-500 outline-none text-gray-300 placeholder-gray-500 text-sm">
+        </div>
+
+        <!-- Grid -->
+        <% if (episodes.length === 0) { %>
+            <div class="text-center text-gray-500 mt-20">
+                <p class="text-xl">No hay podcasts aún.</p>
+                <p class="text-sm mt-2">Agrega una URL de YouTube para comenzar.</p>
+            </div>
+        <% } else { %>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="episodesGrid">
+                <% episodes.forEach(episode => { %>
+                    <div class="episode-card bg-gray-800 rounded-xl overflow-hidden shadow-xl border border-gray-700 hover:border-gray-600 transition duration-300">
+                        <!-- Video Player -->
+                        <div class="aspect-video bg-black">
+                            <video controls preload="metadata" class="w-full h-full object-contain" poster="/downloads/temp/<%= episode.youtube_id %>.jpg">
+                                <source src="/downloads/<%= episode.file_path %>" type="video/mp4">
+                                Tu navegador no soporta el elemento video.
+                            </video>
+                        </div>
+                        
+                        <!-- Content -->
+                        <div class="p-5">
+                            <h3 class="episode-title font-bold text-lg mb-2 line-clamp-2 leading-tight" title="<%= episode.title %>">
+                                <%= episode.title %>
+                            </h3>
+                            <div class="flex justify-between items-center mt-4">
+                                <span class="text-xs text-gray-400">
+                                    <%= new Date(episode.created_at).toLocaleDateString() %>
+                                </span>
+                                <a href="/download/<%= episode.id %>" class="text-sm bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded transition duration-200 flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                    Descargar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+
+    </main>
+
+    <footer class="bg-gray-800 text-gray-500 py-6 mt-12 text-center text-sm">
+        <p>Youtube2Podcast - Raspberry Pi Edition | <a href="/admin" class="hover:text-gray-300">Admin</a></p>
+    </footer>
+
+    <!-- Progress Overlay -->
+    <div id="progress-overlay" class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-90 flex items-center justify-center z-[9999] hidden backdrop-blur-sm p-4">
+        <div class="bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md border border-gray-700 text-center relative z-[10000] transform transition-all scale-100">
+            <div class="mb-6 relative">
+                <div class="w-16 h-16 bg-gray-700 rounded-full mx-auto flex items-center justify-center animate-pulse">
+                    <!-- Download Icon -->
+                    <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                </div>
+            </div>
+            
+            <h3 class="text-xl sm:text-2xl font-bold mb-2 text-white tracking-tight">Procesando</h3>
+            <p class="text-gray-400 text-sm mb-6">Estamos preparando tu episodio...</p>
+            
+            <div class="w-full bg-gray-900 rounded-full h-3 mb-4 overflow-hidden border border-gray-700">
+                <div id="progress-bar" class="bg-gradient-to-r from-red-600 to-red-500 h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(220,38,38,0.5)]" style="width: 0%"></div>
+            </div>
+            
+            <p id="progress-status" class="text-gray-300 text-xs sm:text-sm font-mono bg-gray-900 py-2 px-3 rounded-lg inline-block border border-gray-700">Iniciando...</p>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const overlay = document.getElementById('progress-overlay');
+        const bar = document.getElementById('progress-bar');
+        const status = document.getElementById('progress-status');
+
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function(e) {
+                const term = e.target.value.toLowerCase();
+                const cards = document.querySelectorAll('.episode-card');
+                
+                cards.forEach(card => {
+                    const titleElement = card.querySelector('.episode-title');
+                    const title = titleElement ? titleElement.innerText.toLowerCase() : '';
+                    
+                    if (title.includes(term)) {
+                        card.style.display = '';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // Helper to handle SSE
+        function startProgressTracking() {
+            overlay.classList.remove('hidden');
+            const evtSource = new EventSource('/progress');
+            
+            evtSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                if (data.status === 'error') {
+                    status.innerText = 'Error: ' + data.message;
+                    status.classList.add('text-red-500');
+                    status.classList.remove('animate-pulse');
+                    evtSource.close();
+                    // Keep error visible for longer
+                    setTimeout(() => {
+                        overlay.classList.add('hidden');
+                        window.history.replaceState({}, document.title, "/");
+                    }, 5000);
+                } else if (data.status === 'done') {
+                    bar.style.width = '100%';
+                    status.innerText = '¡Listo!';
+                    evtSource.close();
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                } else if (data.status === 'resumed' || data.percent) {
+                     if (data.percent) bar.style.width = data.percent + '%';
+                    
+                    if (data.status === 'fetching_metadata') status.innerText = 'Obteniendo información...';
+                    if (data.status === 'downloading_audio') status.innerText = 'Descargando audio y portada...';
+                    if (data.status === 'converting') status.innerText = 'Generando video...';
+                }
+            };
+
+            evtSource.onerror = function(err) {
+                console.error("EventSource failed:", err);
+                evtSource.close();
+            };
+        }
+
+        // Force check logic
+        const isProcessingServer = <%= typeof isProcessing !== 'undefined' && isProcessing ? 'true' : 'false' %>;
+        const isProcessingUrl = urlParams.get('processing') === 'true';
+        
+        if (isProcessingUrl || isProcessingServer) {
+             // Only push history if not already there
+             if (!isProcessingUrl) {
+                 window.history.replaceState({}, document.title, "/?processing=true");
+             }
+             // Small delay to ensure DOM is ready
+             setTimeout(startProgressTracking, 100);
+        }
+    </script>
+</body>
+</html>
