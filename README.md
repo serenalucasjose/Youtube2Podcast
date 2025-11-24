@@ -2,6 +2,14 @@
 
 Esta aplicación permite descargar audios de YouTube, convertirlos a video (MP4 con imagen estática) y servirlos localmente para ser consumidos como un podcast personal.
 
+## Características
+
+*   **Descarga y Conversión**: Convierte videos de YouTube a MP4 optimizados para audio.
+*   **Gestión de Usuarios**: Sistema de login y aislamiento de contenido por usuario.
+*   **Modo Caminata**: Bloqueo de pantalla para evitar toques accidentales mientras escuchas en movimiento.
+*   **Carga Optimista**: Visualiza el episodio inmediatamente mientras se procesa en segundo plano.
+*   **Panel de Administración**: Gestión de usuarios y limpieza de datos.
+
 ## Requisitos
 
 - Raspberry Pi (o cualquier sistema Linux)
@@ -38,24 +46,32 @@ La aplicación estará disponible en `http://localhost:3000` (o la IP de tu Rasp
 
 ## Uso
 
-1. Pega una URL de YouTube en la barra de entrada.
-2. Haz clic en "Agregar".
-3. Espera a que se procese (puede tardar unos minutos dependiendo de la duración y la velocidad de la Raspberry Pi).
-4. El episodio aparecerá en la lista y podrás reproducirlo o descargarlo.
+1. **Login**: Ingresa con las credenciales por defecto (ver abajo).
+2. **Agregar Podcast**: Pega una URL de YouTube en la barra de entrada.
+3. **Procesamiento**: El episodio aparecerá inmediatamente en estado "Procesando". Podrás reproducirlo una vez finalice la descarga y conversión.
+4. **Modo Caminata**: Actívalo desde el menú superior para bloquear la pantalla. Mantén presionado el círculo central para desbloquear.
 
-## Administración
+## Credenciales por Defecto
 
-Puedes acceder al panel de administración en `/admin` (enlace en el pie de página).
+El sistema crea automáticamente usuarios al iniciar si no existen:
 
-**Credenciales por defecto:**
-- Usuario: `admin`
-- Contraseña: `raspberry`
+| Rol | Usuario | Contraseña | Descripción |
+|---|---|---|---|
+| **Admin** | `admin` | `admin` | Acceso completo al panel de administración. |
+| **Usuario** | `user` | `user` | Usuario estándar. |
+| **Usuario** | `test1` | `password` | Usuario de prueba adicional. |
+| **Usuario** | `test2` | `password` | Usuario de prueba adicional. |
 
-Puedes cambiarlas creando un archivo `.env` basado en `.env.example`.
+**Nota**: Se recomienda cambiar estas contraseñas o crear nuevos usuarios desde el panel de administración (`/admin`).
 
 ## Estructura de Carpetas
 
-- `data/`: Base de datos SQLite.
+- `data/`: Base de datos SQLite (`youtube2podcast.db`) y Sesiones.
 - `downloads/`: Archivos MP4 generados.
 - `src/`: Código fuente.
+- `views/`: Plantillas EJS.
 
+## Notas Técnicas
+
+- La base de datos se migra automáticamente al iniciar.
+- Las descargas continúan en segundo plano incluso si cierras la pestaña (el servidor debe seguir corriendo).
