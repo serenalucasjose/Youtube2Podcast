@@ -9,23 +9,22 @@
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col">
 
-    <nav class="bg-gray-800 shadow-lg">
+    <nav class="bg-gray-800 shadow-lg sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
                 <div class="flex items-center gap-4">
                     <h1 class="text-2xl font-bold text-red-500">Youtube2Podcast</h1>
-                    <span class="text-xs bg-gray-700 px-2 py-1 rounded text-gray-300">v1.1</span>
+                    <span class="text-xs bg-gray-700 px-2 py-1 rounded text-gray-300">v1.3</span>
                 </div>
                 <div class="flex items-center gap-4">
-                    <button id="walk-mode-btn" title="Activar Modo Caminata">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-                        <span class="hidden sm:inline">Modo Caminata</span>
+                    <button id="walk-mode-btn" title="Activar Modo Caminata" class="text-gray-300 hover:text-white">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
                     </button>
                     
                     <div class="flex items-center gap-2 md:gap-4">
                         <span class="text-gray-400 text-sm hidden md:inline"><%= user %></span>
                         <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
-                            <a href="/admin" class="admin-link">Admin</a>
+                            <a href="/admin" class="admin-link text-sm text-blue-400 hover:text-blue-300">Admin</a>
                         <% } %>
                         <a href="/logout" class="text-gray-400 hover:text-white text-sm">Salir</a>
                     </div>
@@ -37,7 +36,7 @@
     <main class="flex-grow container mx-auto px-4 py-8" id="main-content">
         
         <!-- Input Section -->
-        <div class="max-w-2xl mx-auto mb-12" id="input-section">
+        <div class="max-w-2xl mx-auto mb-8" id="input-section">
             <form action="/add" method="POST" class="flex gap-4 mb-6" onsubmit="document.getElementById('add-btn').disabled = true; document.getElementById('add-btn').innerText = '...';">
                 <input type="url" name="url" placeholder="Pegar URL de YouTube aquí..." required 
                     class="flex-grow px-4 py-3 rounded-lg bg-gray-800 border border-gray-700 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition duration-200 text-white placeholder-gray-400">
@@ -46,78 +45,136 @@
                 </button>
             </form>
             
-            <!-- Search Input -->
-            <input type="text" id="searchInput" placeholder="Buscar episodios..." 
-                class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-gray-500 outline-none text-gray-300 placeholder-gray-500 text-sm">
+            <div class="flex justify-between items-center gap-4">
+                 <!-- Search Input -->
+                <input type="text" id="searchInput" placeholder="Buscar episodios..." 
+                    class="flex-grow px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-gray-500 outline-none text-gray-300 placeholder-gray-500 text-sm">
+                
+                <!-- Bulk Actions -->
+                 <div class="flex items-center gap-2" id="bulk-actions" style="display: none;">
+                    <button onclick="submitBulkDelete()" class="bg-red-900 hover:bg-red-700 text-red-200 text-xs py-2 px-3 rounded border border-red-700 transition">
+                        Borrar Seleccionados (<span id="selected-count">0</span>)
+                    </button>
+                 </div>
+            </div>
+            <div class="mt-2 flex items-center gap-2">
+                <input type="checkbox" id="select-all" class="episode-checkbox" style="margin-right: 0;">
+                <label for="select-all" class="text-xs text-gray-400 cursor-pointer select-none">Seleccionar todos</label>
+            </div>
         </div>
 
-        <!-- Grid -->
+        <!-- List / Grid -->
+        <form id="delete-form" action="/delete" method="POST">
         <% if (episodes.length === 0) { %>
             <div class="text-center text-gray-500 mt-20">
                 <p class="text-xl">No hay podcasts aún.</p>
                 <p class="text-sm mt-2">Agrega una URL de YouTube para comenzar.</p>
             </div>
         <% } else { %>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="episodesGrid">
-                <% episodes.forEach(episode => { %>
-                    <div class="episode-card bg-gray-800 rounded-xl overflow-hidden shadow-xl border border-gray-700 hover:border-gray-600 transition duration-300 relative">
+            <div id="episodesGrid">
+                <% episodes.forEach(episode => { 
+                    const isMp3 = episode.file_path && episode.file_path.endsWith('.mp3');
+                    const isProcessing = episode.status === 'processing';
+                %>
+                    <div class="episode-card group <%= isProcessing ? 'processing' : '' %>" data-youtube-id="<%= episode.youtube_id %>">
                         
-                        <!-- Video Player / Thumbnail -->
-                        <div class="aspect-video bg-black relative">
+                        <!-- Checkbox (Left) -->
+                        <div class="card-checkbox-container">
+                            <input type="checkbox" name="ids" value="<%= episode.id %>" class="episode-checkbox">
+                        </div>
+
+                        <!-- Content (Middle) -->
+                        <div class="p-4">
+                            <div class="flex justify-between items-start">
+                                <h3 class="episode-title" title="<%= episode.title %>">
+                                    <%= episode.title %>
+                                </h3>
+                            </div>
+                            
+                            <div class="card-meta-row">
+                                <span class="card-date">
+                                    <%= new Date(episode.created_at).toLocaleDateString() %> • 
+                                    <span class="<%= episode.status === 'ready' ? 'text-green-500' : (episode.status === 'error' ? 'text-red-500' : 'text-yellow-500') %>">
+                                        <%= episode.status === 'ready' ? 'Listo' : (episode.status === 'error' ? 'Error' : 'Procesando') %>
+                                    </span>
+                                </span>
+                                
+                                <!-- Actions -->
+                                <div class="flex items-center gap-3">
+                                    <% if (episode.status === 'ready') { %>
+                                        <!-- Reload / Re-download Button (Hidden for now, maybe useful?) -->
+                                        <!-- Open Native -->
+                                        <a href="/downloads/<%= episode.file_path %>" target="_blank" class="text-gray-400 hover:text-white transition" title="Abrir nativo">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                        </a>
+                                        <!-- Download -->
+                                        <a href="/download/<%= episode.id %>" class="text-gray-400 hover:text-blue-400 transition" title="Descargar">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                        </a>
+                                    <% } else if (isProcessing) { %>
+                                        <!-- Processing Spinner icon -->
+                                        <svg class="w-5 h-5 text-gray-500 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                    <% } %>
+                                    
+                                    <!-- Delete Button -->
+                                    <button type="button" onclick="confirmDelete('<%= episode.id %>')" class="text-gray-400 hover:text-red-500 transition" title="Borrar">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Audio Player (Custom) -->
+                            <% if (episode.status === 'ready' && isMp3) { %>
+                                <div class="custom-audio-player" data-src="/downloads/<%= episode.file_path %>">
+                                    <button class="audio-play-btn" type="button" aria-label="Play">
+                                        <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                                        <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                    </button>
+                                    <div class="audio-progress-container">
+                                        <input type="range" class="audio-progress" value="0" min="0" max="100" step="0.1">
+                                        <div class="audio-progress-fill"></div>
+                                    </div>
+                                    <span class="audio-time">0:00</span>
+                                    <span class="audio-duration">/ 0:00</span>
+                                    <div class="audio-volume-container">
+                                        <button class="audio-volume-btn" type="button" aria-label="Volume">
+                                            <svg class="volume-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                                            <svg class="mute-icon hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+                                        </button>
+                                        <input type="range" class="audio-volume" value="80" min="0" max="100">
+                                    </div>
+                                    <audio preload="none">
+                                        <source src="/downloads/<%= episode.file_path %>" type="audio/mpeg">
+                                    </audio>
+                                </div>
+                            <% } %>
+                        </div>
+
+                        <!-- Thumbnail (Right) -->
+                        <div class="aspect-video">
                             <% if (episode.status === 'ready') { %>
-                                <video controls preload="metadata" class="w-full h-full object-contain" poster="/downloads/temp/<%= episode.youtube_id %>.jpg">
-                                    <source src="/downloads/<%= episode.file_path %>" type="video/mp4">
-                                    Tu navegador no soporta el elemento video.
-                                </video>
+                                <img src="<%= episode.thumbnail_url || '/images/placeholder.jpg' %>" loading="lazy">
                             <% } else { %>
-                                <!-- Processing / Error State -->
-                                <img src="<%= episode.thumbnail_url || '/images/placeholder.jpg' %>" class="w-full h-full object-cover opacity-50">
-                                <div class="absolute inset-0 flex items-center justify-center">
+                                <div class="w-full h-full flex items-center justify-center bg-gray-800">
                                     <% if (episode.status === 'error') { %>
-                                        <div class="text-red-500 font-bold flex flex-col items-center">
-                                            <svg class="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                            <span>Error</span>
-                                        </div>
+                                        <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     <% } else { %>
-                                        <div class="text-white font-bold flex flex-col items-center animate-pulse">
-                                            <svg class="w-10 h-10 mb-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                            <span>Procesando...</span>
-                                        </div>
+                                        <img src="<%= episode.thumbnail_url || '/images/placeholder.jpg' %>" class="w-full h-full object-cover opacity-50">
                                     <% } %>
                                 </div>
                             <% } %>
                         </div>
-                        
-                        <!-- Content -->
-                        <div class="p-5">
-                            <h3 class="episode-title font-bold text-lg mb-2 line-clamp-2 leading-tight" title="<%= episode.title %>">
-                                <%= episode.title %>
-                            </h3>
-                            <div class="flex justify-between items-center mt-4">
-                                <span class="text-xs text-gray-400">
-                                    <%= new Date(episode.created_at).toLocaleDateString() %>
-                                </span>
-                                <% if (episode.status === 'ready') { %>
-                                    <a href="/download/<%= episode.id %>" class="text-sm bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded transition duration-200 flex items-center gap-2">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                        Descargar
-                                    </a>
-                                <% } else { %>
-                                    <span class="text-sm text-gray-500 italic">
-                                        <%= episode.status === 'error' ? 'Falló' : 'Espere...' %>
-                                    </span>
-                                <% } %>
-                            </div>
-                        </div>
+
                     </div>
                 <% }); %>
             </div>
         <% } %>
+        </form>
 
     </main>
 
     <footer class="bg-gray-800 text-gray-500 py-6 mt-12 text-center text-sm">
-        <p>Youtube2Podcast | <a href="/logout" class="hover:text-gray-300">Salir</a></p>
+        <p>Youtube2Podcast v1.3 | <a href="/logout" class="hover:text-gray-300">Salir</a></p>
     </footer>
 
     <!-- Walk Mode Overlay -->
@@ -146,14 +203,87 @@
             });
         }
 
+        // Selection Logic
+        const selectAllCheckbox = document.getElementById('select-all');
+        const episodeCheckboxes = document.querySelectorAll('.episode-checkbox[name="ids"]');
+        const bulkActionsDiv = document.getElementById('bulk-actions');
+        const selectedCountSpan = document.getElementById('selected-count');
+
+        function updateBulkUI() {
+            const count = document.querySelectorAll('.episode-checkbox[name="ids"]:checked').length;
+            selectedCountSpan.innerText = count;
+            bulkActionsDiv.style.display = count > 0 ? 'flex' : 'none';
+        }
+
+        selectAllCheckbox.addEventListener('change', (e) => {
+            // Re-query in case of dynamic changes, though not expected here
+            const currentCheckboxes = document.querySelectorAll('.episode-checkbox[name="ids"]');
+            currentCheckboxes.forEach(cb => cb.checked = e.target.checked);
+            updateBulkUI();
+        });
+
+        // Event delegation for better performance? Or just re-attach
+        // Re-querying is safer if we had infinite scroll, but static list for now
+        document.querySelectorAll('.episode-checkbox[name="ids"]').forEach(cb => {
+            cb.addEventListener('change', updateBulkUI);
+        });
+
+        function submitBulkDelete() {
+            if (confirm('¿Estás seguro de que deseas eliminar los episodios seleccionados?')) {
+                document.getElementById('delete-form').submit();
+            }
+        }
+
+        function confirmDelete(id) {
+            if (confirm('¿Eliminar este episodio?')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/delete';
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'ids';
+                input.value = id;
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
         // SSE for auto-reload when download completes
         const evtSource = new EventSource('/progress');
         evtSource.onmessage = function(event) {
             const data = JSON.parse(event.data);
+            console.log('SSE Event:', data);
+
             if (data.status === 'done') {
-                // Reload to show the video
-                // Optional: Check if it's relevant to us, but simple reload is safest
                 window.location.reload();
+            } else if (data.status === 'error') {
+                const card = document.querySelector(`.episode-card[data-youtube-id="${data.videoId}"]`);
+                if (card) {
+                    // Remove processing class
+                    card.classList.remove('processing');
+                    
+                    // Update Status Text
+                    // The structure is .card-date > span
+                    const statusSpan = card.querySelector('.card-date span');
+                    if (statusSpan) {
+                        statusSpan.className = 'text-red-500';
+                        statusSpan.innerText = 'Error';
+                    }
+
+                    // Update Thumbnail area to show Error Icon
+                    const thumbContainer = card.querySelector('.aspect-video > div');
+                    if (thumbContainer) {
+                        thumbContainer.innerHTML = `
+                            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        `;
+                    }
+                    
+                    // Optional: Show alert or toast
+                    // alert('Error processing video: ' + (data.message || 'Unknown error'));
+                }
             }
         };
 
@@ -168,14 +298,13 @@
             document.body.style.overflow = 'hidden'; // Prevent scrolling
         });
 
-        // Unlock Logic (Long Press)
         const startPress = () => {
             unlockArea.classList.add('border-red-500');
             unlockArea.classList.remove('border-gray-700');
             pressTimer = setTimeout(() => {
                 walkOverlay.classList.add('hidden');
                 document.body.style.overflow = '';
-            }, 1500); // 1.5s hold
+            }, 1500);
         };
 
         const endPress = () => {
@@ -189,6 +318,124 @@
         unlockArea.addEventListener('mouseup', endPress);
         unlockArea.addEventListener('touchend', endPress);
         unlockArea.addEventListener('mouseleave', endPress);
+
+        // === Custom Audio Player ===
+        function formatTime(seconds) {
+            if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function initAudioPlayers() {
+            document.querySelectorAll('.custom-audio-player').forEach(player => {
+                const audio = player.querySelector('audio');
+                const playBtn = player.querySelector('.audio-play-btn');
+                const playIcon = player.querySelector('.play-icon');
+                const pauseIcon = player.querySelector('.pause-icon');
+                const progressBar = player.querySelector('.audio-progress');
+                const progressFill = player.querySelector('.audio-progress-fill');
+                const timeDisplay = player.querySelector('.audio-time');
+                const durationDisplay = player.querySelector('.audio-duration');
+                const volumeBtn = player.querySelector('.audio-volume-btn');
+                const volumeSlider = player.querySelector('.audio-volume');
+                const volumeIcon = player.querySelector('.volume-icon');
+                const muteIcon = player.querySelector('.mute-icon');
+
+                let lastVolume = 0.8;
+
+                // Play/Pause
+                playBtn.addEventListener('click', () => {
+                    // Pause all other players first
+                    document.querySelectorAll('.custom-audio-player audio').forEach(a => {
+                        if (a !== audio && !a.paused) {
+                            a.pause();
+                            const otherPlayer = a.closest('.custom-audio-player');
+                            otherPlayer.classList.remove('playing');
+                            otherPlayer.querySelector('.play-icon').classList.remove('hidden');
+                            otherPlayer.querySelector('.pause-icon').classList.add('hidden');
+                        }
+                    });
+
+                    if (audio.paused) {
+                        audio.play();
+                        player.classList.add('playing');
+                        playIcon.classList.add('hidden');
+                        pauseIcon.classList.remove('hidden');
+                    } else {
+                        audio.pause();
+                        player.classList.remove('playing');
+                        playIcon.classList.remove('hidden');
+                        pauseIcon.classList.add('hidden');
+                    }
+                });
+
+                // Update progress
+                audio.addEventListener('timeupdate', () => {
+                    const percent = (audio.currentTime / audio.duration) * 100 || 0;
+                    progressFill.style.width = percent + '%';
+                    progressBar.value = percent;
+                    timeDisplay.textContent = formatTime(audio.currentTime);
+                });
+
+                // Duration loaded
+                audio.addEventListener('loadedmetadata', () => {
+                    durationDisplay.textContent = '/ ' + formatTime(audio.duration);
+                });
+
+                // Seek
+                progressBar.addEventListener('input', (e) => {
+                    const percent = e.target.value;
+                    audio.currentTime = (percent / 100) * audio.duration;
+                    progressFill.style.width = percent + '%';
+                });
+
+                // Volume
+                volumeSlider.addEventListener('input', (e) => {
+                    const vol = e.target.value / 100;
+                    audio.volume = vol;
+                    lastVolume = vol > 0 ? vol : lastVolume;
+                    updateVolumeIcon(vol);
+                });
+
+                // Mute toggle
+                volumeBtn.addEventListener('click', () => {
+                    if (audio.volume > 0) {
+                        lastVolume = audio.volume;
+                        audio.volume = 0;
+                        volumeSlider.value = 0;
+                    } else {
+                        audio.volume = lastVolume;
+                        volumeSlider.value = lastVolume * 100;
+                    }
+                    updateVolumeIcon(audio.volume);
+                });
+
+                function updateVolumeIcon(vol) {
+                    if (vol === 0) {
+                        volumeIcon.classList.add('hidden');
+                        muteIcon.classList.remove('hidden');
+                    } else {
+                        volumeIcon.classList.remove('hidden');
+                        muteIcon.classList.add('hidden');
+                    }
+                }
+
+                // Audio ended
+                audio.addEventListener('ended', () => {
+                    player.classList.remove('playing');
+                    playIcon.classList.remove('hidden');
+                    pauseIcon.classList.add('hidden');
+                    progressFill.style.width = '0%';
+                    progressBar.value = 0;
+                });
+
+                // Set initial volume
+                audio.volume = 0.8;
+            });
+        }
+
+        initAudioPlayers();
     </script>
 </body>
 </html>

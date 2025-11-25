@@ -120,6 +120,62 @@ app.post('/add', requireAuth, async (req, res) => {
     }
 });
 
+// Delete Episodes
+app.post('/delete', requireAuth, (req, res) => {
+    let ids = req.body.ids;
+    if (!ids) {
+        return res.status(400).send('No IDs provided');
+    }
+    
+    // Ensure ids is an array
+    if (!Array.isArray(ids)) {
+        ids = [ids];
+    }
+
+    const downloadsDir = path.join(__dirname, '../downloads');
+    const tempDir = path.join(downloadsDir, 'temp');
+
+    ids.forEach(id => {
+        const episode = db.getEpisodeById(id);
+        if (episode) {
+            // Check ownership or admin
+            if (episode.user_id === req.session.userId || req.session.role === 'admin') {
+                // Delete main file
+                if (episode.file_path) {
+                    const filePath = path.join(downloadsDir, episode.file_path);
+                    try {
+                        if (fs.existsSync(filePath)) {
+                            fs.unlinkSync(filePath);
+                        }
+                    } catch (err) {
+                        console.error(`Error deleting file ${filePath}:`, err);
+                    }
+                }
+                
+                // Delete any temp files associated with this episode (by youtube_id)
+                if (episode.youtube_id && fs.existsSync(tempDir)) {
+                    try {
+                        const tempFiles = fs.readdirSync(tempDir);
+                        tempFiles.forEach(file => {
+                            if (file.startsWith(episode.youtube_id)) {
+                                const tempFilePath = path.join(tempDir, file);
+                                fs.unlinkSync(tempFilePath);
+                            }
+                        });
+                    } catch (err) {
+                        console.error(`Error cleaning temp files for ${episode.youtube_id}:`, err);
+                    }
+                }
+                
+                // Delete from DB
+                db.deleteEpisode(id);
+            }
+        }
+    });
+
+    res.redirect('/');
+});
+
 // Download Episode
 app.get('/download/:id', requireAuth, (req, res) => {
     const episode = db.getEpisodeById(req.params.id);
@@ -138,7 +194,8 @@ app.get('/download/:id', requireAuth, (req, res) => {
     }
 
     const filePath = path.join(__dirname, '../downloads', episode.file_path);
-    res.download(filePath, `${episode.title}.mp4`);
+    const ext = path.extname(episode.file_path);
+    res.download(filePath, `${episode.title}${ext}`);
 });
 
 // Admin Panel

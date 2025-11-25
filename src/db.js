@@ -153,6 +153,9 @@ module.exports = {
   getEpisodeByYoutubeId: (youtubeId) => {
       return db.prepare('SELECT * FROM episodes WHERE youtube_id = ?').get(youtubeId);
   },
+  deleteEpisode: (id) => {
+      return db.prepare('DELETE FROM episodes WHERE id = ?').run(id);
+  },
   deleteAllEpisodes: () => {
       return db.prepare('DELETE FROM episodes').run();
   }
