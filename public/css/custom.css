@@ -24,6 +24,9 @@
     transform: none !important;
 }
 
+/* Border Radius Utilities */
+.rounded-sm { border-radius: 0.125rem; }
+
 /* SVG Dimensions Patch */
 .w-8 { width: 2rem !important; }
 .h-8 { height: 2rem !important; }

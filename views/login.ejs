@@ -6,6 +6,10 @@
     <title>Login - Youtube2Podcast</title>
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/custom.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#dc2626">
+    <link rel="icon" type="image/png" href="/icons/logo.png">
+    <link rel="apple-touch-icon" href="/icons/logo.png">
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen flex items-center justify-center px-4">
 
@@ -40,6 +44,14 @@
         </form>
     </div>
 
+    <script>
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('Service Worker registrado:', reg.scope))
+                .catch(err => console.warn('Service Worker error:', err));
+        }
+    </script>
 </body>
 </html>
 

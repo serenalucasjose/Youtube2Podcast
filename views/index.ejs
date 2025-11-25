@@ -6,14 +6,18 @@
     <title>Youtube2Podcast</title>
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/custom.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#dc2626">
+    <link rel="icon" type="image/png" href="/icons/logo.png">
+    <link rel="apple-touch-icon" href="/icons/logo.png">
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col">
 
     <nav class="bg-gray-800 shadow-lg sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16 items-center">
+            <div class="flex justify-between py-2 items-center">
                 <div class="flex items-center gap-4">
-                    <h1 class="text-2xl font-bold text-red-500">Youtube2Podcast</h1>
+                    <img src="/icons/logo.png" alt="Youtube2Podcast" class="w-auto rounded-sm" style="max-width: 80px;">
                     <span class="text-xs bg-gray-700 px-2 py-1 rounded text-gray-300">v1.3</span>
                 </div>
                 <div class="flex items-center gap-4">
@@ -487,6 +491,13 @@
         }
 
         initAudioPlayers();
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('Service Worker registrado:', reg.scope))
+                .catch(err => console.warn('Service Worker error:', err));
+        }
     </script>
 </body>
 </html>
