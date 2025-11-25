@@ -30,6 +30,12 @@
             <div class="admin-section">
                 <h2 class="text-xl font-bold mb-6 text-white border-b border-gray-700 pb-2">Usuarios</h2>
                 
+                <% if (typeof error !== 'undefined' && error) { %>
+                    <div class="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-6 text-sm">
+                        <%= error %>
+                    </div>
+                <% } %>
+                
                 <!-- Add User Form -->
                 <form action="/admin/users/add" method="POST" class="mb-8 bg-gray-900 p-8 sm:p-10 rounded-lg border border-gray-700 shadow-inner">
                     <h3 class="text-sm font-bold text-gray-400 mb-6 uppercase tracking-wide border-b border-gray-800 pb-2">Crear Nuevo Usuario</h3>

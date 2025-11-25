@@ -18,11 +18,14 @@
                 </div>
                 <div class="flex items-center gap-4">
                     <button id="walk-mode-btn" title="Activar Modo Caminata" class="text-gray-300 hover:text-white">
-                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="2"/><path d="M10.27 21.27L9.5 17l-2-2v-4.5a1 1 0 011-1h.73l2.27 2.27V17l-.73 4.27M14 9.5l1.5-1.5 2-1.5-1 2-1.5 1.5-1 2v4l1.5 5h-2l-1.5-5v-4l1-2.5z"/></svg>
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQc6rEM9CAB3FlBxasuUJJKgK3N59DTlJ9Xcgi-MlQlEmg6u0Hc2rRXuNRcOd3mJKHU4Wg&usqp=CAU" alt="Modo Caminata" class="w-6 h-6 rounded-full object-cover">
                     </button>
                     
                     <div class="flex items-center gap-2 md:gap-4">
                         <span class="text-gray-400 text-sm hidden md:inline"><%= user %></span>
+                        <span class="text-xs bg-gray-700 px-2 py-1 rounded text-gray-300" title="Videos usados">
+                            <%= episodeCount %>/<%= quotaLimit %>
+                        </span>
                         <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
                             <a href="/admin" class="admin-link text-sm text-blue-400 hover:text-blue-300">Admin</a>
                         <% } %>
@@ -35,6 +38,14 @@
 
     <main class="flex-grow container mx-auto px-4 py-8" id="main-content">
         
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="max-w-2xl mx-auto mb-4">
+                <div class="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm">
+                    <%= error %>
+                </div>
+            </div>
+        <% } %>
+
         <!-- Input Section -->
         <div class="max-w-2xl mx-auto mb-8" id="input-section">
             <form action="/add" method="POST" class="flex gap-4 mb-6" onsubmit="document.getElementById('add-btn').disabled = true; document.getElementById('add-btn').innerText = '...';">

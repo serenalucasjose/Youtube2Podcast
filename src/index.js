@@ -101,10 +101,15 @@ app.get('/progress', requireAuth, (req, res) => {
 // Home: List episodes
 app.get('/', requireAuth, (req, res) => {
     const episodes = db.getEpisodes(req.session.userId);
+    const error = req.query.error || null;
+    const quotaLimit = 3;
     res.render('index', { 
         episodes, 
         user: req.session.username,
-        isAdmin: req.session.role === 'admin'
+        isAdmin: req.session.role === 'admin',
+        error,
+        episodeCount: episodes.length,
+        quotaLimit
     });
 });
 
@@ -113,6 +118,12 @@ app.post('/add', requireAuth, async (req, res) => {
     const url = req.body.url;
     if (!url) {
         return res.status(400).send('URL is required');
+    }
+
+    // Check quota (max 3 videos per user)
+    const userEpisodes = db.getEpisodes(req.session.userId);
+    if (userEpisodes.length >= 3) {
+        return res.redirect('/?error=' + encodeURIComponent('Has alcanzado el límite de 3 videos.'));
     }
 
     try {
@@ -207,20 +218,22 @@ app.get('/download/:id', requireAuth, (req, res) => {
 // Admin Panel
 app.get('/admin', requireAdmin, (req, res) => {
     const users = db.getAllUsers();
+    const error = req.query.error || null;
     res.render('admin', { 
         users,
         user: {
             id: req.session.userId,
             username: req.session.username,
             role: req.session.role
-        }
+        },
+        error
     });
 });
 
 app.post('/admin/users/delete/:id', requireAdmin, (req, res) => {
     const id = req.params.id;
     if (parseInt(id) === req.session.userId) {
-        return res.status(400).send('Cannot delete yourself');
+        return res.redirect('/admin?error=' + encodeURIComponent('No puedes borrarte a ti mismo.'));
     }
     db.deleteUser(id);
     res.redirect('/admin');
