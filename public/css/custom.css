@@ -525,3 +525,89 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
 .custom-audio-player.playing .audio-play-btn:hover {
     box-shadow: 0 4px 12px rgba(34, 197, 94, 0.6);
 }
+
+/* === WALK MODE OVERLAY RESPONSIVE === */
+#walk-overlay {
+    padding: 1rem;
+}
+
+#walk-overlay > div:first-child {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+#walk-overlay > div:first-child svg {
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 0.75rem;
+}
+
+#walk-overlay > div:first-child h2 {
+    font-size: 1.25rem;
+}
+
+#walk-overlay > div:first-child p {
+    font-size: 0.75rem;
+}
+
+#unlock-area {
+    width: 10rem;
+    height: 10rem;
+}
+
+#unlock-area p {
+    font-size: 0.75rem;
+    padding: 0 1rem;
+}
+
+/* Small screens (sm: 640px+) */
+@media (min-width: 640px) {
+    #walk-overlay > div:first-child {
+        margin-bottom: 2rem;
+    }
+    
+    #walk-overlay > div:first-child svg {
+        width: 4rem;
+        height: 4rem;
+        margin-bottom: 1rem;
+    }
+    
+    #walk-overlay > div:first-child h2 {
+        font-size: 1.5rem;
+    }
+    
+    #walk-overlay > div:first-child p {
+        font-size: 0.875rem;
+    }
+    
+    #unlock-area {
+        width: 13rem;
+        height: 13rem;
+    }
+    
+    #unlock-area p {
+        font-size: 0.875rem;
+    }
+}
+
+/* Medium screens (md: 768px+) */
+@media (min-width: 768px) {
+    #walk-overlay > div:first-child svg {
+        width: 5rem;
+        height: 5rem;
+    }
+    
+    #walk-overlay > div:first-child h2 {
+        font-size: 1.875rem;
+    }
+    
+    #walk-overlay > div:first-child p {
+        font-size: 1rem;
+    }
+    
+    #unlock-area {
+        width: 16rem;
+        height: 16rem;
+    }
+}
