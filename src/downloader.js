@@ -1,5 +1,4 @@
 const youtubedl = require('youtube-dl-exec');
-const ffmpeg = require('fluent-ffmpeg');
 const path = require('path');
 const fs = require('fs');
 const db = require('./db');
@@ -14,6 +13,10 @@ if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR);
 const EventEmitter = require('events');
 const progressEmitter = new EventEmitter();
 
+// Configuration
+const MAX_RETRIES = 1;
+const RETRY_DELAY_MS = 2000;
+
 // Helper for logs
 const logError = (message, error) => {
     if (process.env.ENABLE_LOGS === 'true') {
@@ -27,190 +30,188 @@ const logInfo = (message) => {
     }
 };
 
-async function processVideo(url, userId) {
-  // 1. Get Metadata (Blocking part - fast)
-  let metadata;
-  try {
-    progressEmitter.emit('progress', { status: 'fetching_metadata', percent: 10 });
-    logInfo(`Processing URL: ${url}`);
-
-    // const existing = db.getEpisodeByYoutubeId(metadata?.id); 
-    // We can't check here because we don't have metadata yet
-    
-    metadata = await youtubedl(url, {
-      dumpSingleJson: true,
-      noCheckCertificates: true,
-      noWarnings: true,
-      preferFreeFormats: true,
-      addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
-    });
-
-    const videoId = metadata.id;
-    const title = metadata.title;
-    const thumbnail_url = metadata.thumbnail;
-
-    // Check if exists
-    const existingEpisode = db.getEpisodeByYoutubeId(videoId);
-    if (existingEpisode) {
-        progressEmitter.emit('progress', { status: 'done', percent: 100 });
-        return existingEpisode;
-    }
-
-    // Insert into DB immediately as 'processing'
-    const episode = {
-        youtube_id: videoId,
-        title: title,
-        file_path: null, // Not ready yet
-        original_url: url,
-        user_id: userId,
-        status: 'processing',
-        thumbnail_url: thumbnail_url
-    };
-
+// Cleanup temp files for a specific videoId
+function cleanupTempFiles(videoId) {
     try {
-        db.addEpisode(episode);
+        const files = fs.readdirSync(TEMP_DIR);
+        files.forEach(f => {
+            if (f.startsWith(videoId)) {
+                const filePath = path.join(TEMP_DIR, f);
+                try {
+                    fs.unlinkSync(filePath);
+                    logInfo(`Cleaned up temp file: ${filePath}`);
+                } catch (e) {
+                    logError(`Failed to delete temp file ${filePath}:`, e);
+                }
+            }
+        });
     } catch (e) {
-        const e2 = db.getEpisodeByYoutubeId(videoId);
-        if (e2) return e2;
-        throw e;
+        logError('Error reading temp directory for cleanup:', e);
     }
+}
 
-    // Start background process
-    performDownload(url, videoId, userId).catch(err => {
-        logError('Background download failed:', err);
-        db.updateEpisodeStatus(videoId, 'error');
-        progressEmitter.emit('progress', { videoId, status: 'error', message: err.message });
-    });
+// Cleanup final output file if it exists (partial/corrupted)
+function cleanupOutputFile(videoId) {
+    const outputPath = path.join(DOWNLOADS_DIR, `${videoId}.mp3`);
+    if (fs.existsSync(outputPath)) {
+        try {
+            fs.unlinkSync(outputPath);
+            logInfo(`Cleaned up output file: ${outputPath}`);
+        } catch (e) {
+            logError(`Failed to delete output file ${outputPath}:`, e);
+        }
+    }
+}
 
-    // Return immediately so UI can show the card
-    return episode;
+// Sleep helper for retry delay
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-  } catch (error) {
-    logError('Error fetching metadata:', error);
-    // We might not have a videoId here if metadata fetch failed
-    progressEmitter.emit('progress', { status: 'global_error', message: error.message });
-    throw error;
-  }
+async function processVideo(url, userId) {
+    // 1. Get Metadata (Blocking part - fast)
+    let metadata;
+    try {
+        progressEmitter.emit('progress', { status: 'fetching_metadata', percent: 10 });
+        logInfo(`Processing URL: ${url}`);
+
+        metadata = await youtubedl(url, {
+            dumpSingleJson: true,
+            noCheckCertificates: true,
+            noWarnings: true,
+            preferFreeFormats: true,
+            addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
+        });
+
+        const videoId = metadata.id;
+        const title = metadata.title;
+        const thumbnail_url = metadata.thumbnail;
+
+        // Check if exists
+        const existingEpisode = db.getEpisodeByYoutubeId(videoId);
+        if (existingEpisode) {
+            progressEmitter.emit('progress', { status: 'done', percent: 100 });
+            return existingEpisode;
+        }
+
+        // Insert into DB immediately as 'processing'
+        const episode = {
+            youtube_id: videoId,
+            title: title,
+            file_path: null, // Not ready yet
+            original_url: url,
+            user_id: userId,
+            status: 'processing',
+            thumbnail_url: thumbnail_url
+        };
+
+        try {
+            db.addEpisode(episode);
+        } catch (e) {
+            const e2 = db.getEpisodeByYoutubeId(videoId);
+            if (e2) return e2;
+            throw e;
+        }
+
+        // Start background process with retry logic
+        performDownloadWithRetry(url, videoId).catch(err => {
+            logError('Background download failed after retries:', err);
+            // Final cleanup on complete failure
+            cleanupTempFiles(videoId);
+            cleanupOutputFile(videoId);
+            db.updateEpisodeStatus(videoId, 'error');
+            progressEmitter.emit('progress', { videoId, status: 'error', message: err.message });
+        });
+
+        // Return immediately so UI can show the card
+        return episode;
+
+    } catch (error) {
+        logError('Error fetching metadata:', error);
+        progressEmitter.emit('progress', { status: 'global_error', message: error.message });
+        throw error;
+    }
+}
+
+async function performDownloadWithRetry(url, videoId) {
+    let lastError;
+    
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            if (attempt > 0) {
+                logInfo(`Retry attempt ${attempt} for ${videoId}`);
+                progressEmitter.emit('progress', { 
+                    videoId, 
+                    status: 'retrying', 
+                    attempt, 
+                    percent: 25 
+                });
+                await sleep(RETRY_DELAY_MS);
+            }
+            
+            await performDownload(url, videoId);
+            return; // Success, exit retry loop
+            
+        } catch (error) {
+            lastError = error;
+            logError(`Download attempt ${attempt + 1} failed for ${videoId}:`, error);
+            
+            // Cleanup before retry or final failure
+            cleanupTempFiles(videoId);
+            cleanupOutputFile(videoId);
+        }
+    }
+    
+    // All retries exhausted
+    throw lastError;
 }
 
 async function performDownload(url, videoId) {
-    const outputTemplate = path.join(TEMP_DIR, videoId); // Use videoId directly to avoid confusion
+    const outputFileName = `${videoId}.mp3`;
+    const finalPath = path.join(DOWNLOADS_DIR, outputFileName);
 
-    try {
-        progressEmitter.emit('progress', { videoId, status: 'downloading_audio', percent: 30 });
-        
-        // Cleanup previous temp files
-        const existingFiles = fs.readdirSync(TEMP_DIR);
-        existingFiles.forEach(f => {
-            if (f.startsWith(videoId + '.')) {
-                fs.unlinkSync(path.join(TEMP_DIR, f));
-            }
-        });
+    progressEmitter.emit('progress', { videoId, status: 'downloading_audio', percent: 30 });
+    
+    // Cleanup any previous temp files for this video
+    cleanupTempFiles(videoId);
 
-        // Download audio
-        await youtubedl(url, {
-            extractAudio: true,
-            audioFormat: 'mp3',
-            output: `${outputTemplate}.%(ext)s`,
-            noCheckCertificates: true,
-            // Adding force-ipv4 to resolve [Errno 101] Network is unreachable on some networks
-            forceIpv4: true 
-        });
+    // Use yt-dlp's native capabilities for optimal performance:
+    // - Extract audio directly to MP3
+    // - Embed thumbnail automatically (yt-dlp handles WebP conversion internally)
+    // - Add metadata
+    // - Use concurrent fragments for faster downloads (especially for long videos)
+    await youtubedl(url, {
+        extractAudio: true,
+        audioFormat: 'mp3',
+        audioQuality: 2, // VBR quality (0=best, 9=worst), 2 is good balance
+        output: finalPath,
+        noCheckCertificates: true,
+        forceIpv4: true,
+        // Embed thumbnail directly into the MP3 (yt-dlp handles format conversion)
+        embedThumbnail: true,
+        // Add metadata (title, artist, etc.)
+        addMetadata: true,
+        // Concurrent fragment downloads for faster speed on long videos
+        concurrentFragments: 4,
+        // Convert thumbnail to jpg for ID3 compatibility (yt-dlp feature)
+        convertThumbnails: 'jpg',
+        // Postprocessor args to ensure proper ID3 tags
+        postprocessorArgs: 'ffmpeg:-id3v2_version 3',
+    });
 
-        // Download thumbnail
-        await youtubedl(url, {
-            writeThumbnail: true,
-            skipDownload: true,
-            output: `${outputTemplate}`,
-            noCheckCertificates: true,
-             // Adding force-ipv4 here as well
-            forceIpv4: true
-        });
-
-        // Find files
-        const files = fs.readdirSync(TEMP_DIR);
-        const audioFile = files.find(f => f.startsWith(videoId) && (f.endsWith('.m4a') || f.endsWith('.mp3') || f.endsWith('.webm')));
-        const thumbFile = files.find(f => f.startsWith(videoId) && (f.endsWith('.jpg') || f.endsWith('.webp') || f.endsWith('.png')));
-
-        if (!audioFile || !thumbFile) {
-             throw new Error('Failed to download audio or thumbnail files');
-        }
-
-        const audioPath = path.join(TEMP_DIR, audioFile);
-        let thumbPath = path.join(TEMP_DIR, thumbFile);
-        const outputFileName = `${videoId}.mp3`;
-        const finalPath = path.join(DOWNLOADS_DIR, outputFileName);
-
-        // Convert WebP thumbnail to JPEG (MP3 ID3 tags don't support WebP)
-        if (thumbPath.endsWith('.webp')) {
-            const jpegThumbPath = path.join(TEMP_DIR, `${videoId}.jpg`);
-            await new Promise((resolve, reject) => {
-                ffmpeg(thumbPath)
-                    .output(jpegThumbPath)
-                    .on('end', resolve)
-                    .on('error', reject)
-                    .run();
-            });
-            // Remove the original webp and use jpeg
-            fs.unlinkSync(thumbPath);
-            thumbPath = jpegThumbPath;
-        }
-
-        // Convert / Add Metadata
-        progressEmitter.emit('progress', { videoId, status: 'converting', percent: 60 });
-        await new Promise((resolve, reject) => {
-            const command = ffmpeg();
-            
-            // Input 0: Audio
-            command.input(audioPath);
-            
-            // Input 1: Thumbnail (now guaranteed to be JPEG or PNG)
-            command.input(thumbPath);
-            
-            // Use multiple arguments to avoid fluent-ffmpeg's auto-splitting behavior on arrays
-            command.outputOptions(
-                '-map', '0:a',
-                '-map', '1:v',
-                '-c:v', 'mjpeg',
-                '-disposition:v:0', 'attached_pic',
-                '-id3v2_version', '3',
-                '-metadata:s:v', 'title=Album cover',
-                '-metadata:s:v', 'comment=Cover (front)'
-            );
-
-            if (audioPath.endsWith('.mp3')) {
-                 command.outputOptions('-c:a', 'copy');
-            } else {
-                 command.outputOptions('-c:a', 'libmp3lame', '-q:a', '2');
-            }
-                
-            command
-                .on('start', (cmdLine) => {
-                     logInfo('Spawned Ffmpeg with command: ' + cmdLine);
-                })
-                .save(finalPath)
-                .on('end', resolve)
-                .on('error', (err) => {
-                    logError('FFmpeg Error:', err);
-                    reject(err);
-                });
-        });
-
-        // Cleanup
-        if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath);
-        if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
-
-        // Update DB
-        db.updateEpisodeStatus(videoId, 'ready', outputFileName);
-        progressEmitter.emit('progress', { videoId, status: 'done', percent: 100 });
-        logInfo(`Download and conversion complete for ${videoId}`);
-
-    } catch (error) {
-        logError(`Error in background task for ${videoId}:`, error);
-        db.updateEpisodeStatus(videoId, 'error');
-        progressEmitter.emit('progress', { videoId, status: 'error', message: error.message });
-        throw error;
+    // Verify the file was created
+    if (!fs.existsSync(finalPath)) {
+        throw new Error('Output file was not created');
     }
+
+    // Verify file has content (not empty/corrupted)
+    const stats = fs.statSync(finalPath);
+    if (stats.size < 1000) { // Less than 1KB is suspicious
+        throw new Error('Output file appears to be corrupted (too small)');
+    }
+
+    // Update DB
+    db.updateEpisodeStatus(videoId, 'ready', outputFileName);
+    progressEmitter.emit('progress', { videoId, status: 'done', percent: 100 });
+    logInfo(`Download and conversion complete for ${videoId}`);
 }
 
 module.exports = {

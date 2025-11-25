@@ -258,34 +258,74 @@
             if (data.status === 'done') {
                 window.location.reload();
             } else if (data.status === 'error') {
-                const card = document.querySelector(`.episode-card[data-youtube-id="${data.videoId}"]`);
-                if (card) {
-                    // Remove processing class
-                    card.classList.remove('processing');
-                    
-                    // Update Status Text
-                    // The structure is .card-date > span
-                    const statusSpan = card.querySelector('.card-date span');
-                    if (statusSpan) {
-                        statusSpan.className = 'text-red-500';
-                        statusSpan.innerText = 'Error';
-                    }
-
-                    // Update Thumbnail area to show Error Icon
-                    const thumbContainer = card.querySelector('.aspect-video > div');
-                    if (thumbContainer) {
-                        thumbContainer.innerHTML = `
-                            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                        `;
-                    }
-                    
-                    // Optional: Show alert or toast
-                    // alert('Error processing video: ' + (data.message || 'Unknown error'));
-                }
+                updateCardToError(data.videoId);
             }
         };
+
+        // Helper function to update a card to error state
+        function updateCardToError(videoId) {
+            const card = document.querySelector(`.episode-card[data-youtube-id="${videoId}"]`);
+            if (card) {
+                card.classList.remove('processing');
+                const statusSpan = card.querySelector('.card-date span');
+                if (statusSpan) {
+                    statusSpan.className = 'text-red-500';
+                    statusSpan.innerText = 'Error';
+                }
+                const thumbContainer = card.querySelector('.aspect-video > div');
+                if (thumbContainer) {
+                    thumbContainer.innerHTML = `
+                        <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    `;
+                }
+            }
+        }
+
+        // Polling fallback for state sync (runs every 10s if there are processing items)
+        // This handles cases where SSE events are missed (network issues, server restart, etc.)
+        function getProcessingEpisodeIds() {
+            const processingCards = document.querySelectorAll('.episode-card.processing');
+            const ids = [];
+            processingCards.forEach(card => {
+                const checkbox = card.querySelector('input[name="ids"]');
+                if (checkbox) ids.push(checkbox.value);
+            });
+            return ids;
+        }
+
+        async function pollTaskStatus() {
+            const ids = getProcessingEpisodeIds();
+            if (ids.length === 0) return;
+
+            try {
+                const response = await fetch(`/api/task-status?ids=${ids.join(',')}`);
+                if (!response.ok) return;
+                
+                const data = await response.json();
+                let shouldReload = false;
+                
+                data.episodes.forEach(ep => {
+                    if (ep.status === 'ready') {
+                        shouldReload = true;
+                    } else if (ep.status === 'error') {
+                        updateCardToError(ep.youtube_id);
+                    }
+                });
+
+                if (shouldReload) {
+                    window.location.reload();
+                }
+            } catch (err) {
+                console.warn('Polling failed:', err);
+            }
+        }
+
+        // Start polling interval (every 10 seconds)
+        setInterval(pollTaskStatus, 10000);
+        // Also poll once on page load after a short delay (catch immediate state changes)
+        setTimeout(pollTaskStatus, 2000);
 
         // Walk Mode
         const walkBtn = document.getElementById('walk-mode-btn');

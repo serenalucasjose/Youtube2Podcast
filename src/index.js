@@ -11,6 +11,12 @@ const downloader = require('./downloader');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Cleanup stale processing episodes on startup (handles server crashes/restarts)
+const staleReset = db.resetStaleProcessingEpisodes();
+if (staleReset.changes > 0) {
+    console.log(`[Startup] Reset ${staleReset.changes} stale processing episode(s) to error state.`);
+}
+
 // Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -239,6 +245,28 @@ app.post('/admin/users/update/:id', requireAdmin, (req, res) => {
     } catch (error) {
         res.status(400).send(error.message);
     }
+});
+
+// API: Task Status Polling (for frontend fallback when SSE fails)
+app.get('/api/task-status', requireAuth, (req, res) => {
+    const idsParam = req.query.ids;
+    if (!idsParam) {
+        return res.json({ episodes: [] });
+    }
+    
+    // Parse comma-separated IDs
+    const ids = idsParam.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
+    if (ids.length === 0) {
+        return res.json({ episodes: [] });
+    }
+    
+    const episodes = db.getEpisodesByIds(ids);
+    // Filter to only user's episodes (or all if admin)
+    const filtered = episodes.filter(ep => 
+        ep.user_id === req.session.userId || req.session.role === 'admin'
+    );
+    
+    res.json({ episodes: filtered });
 });
 
 // Admin: Clear All Episodes

@@ -158,5 +158,15 @@ module.exports = {
   },
   deleteAllEpisodes: () => {
       return db.prepare('DELETE FROM episodes').run();
+  },
+  // Reset stale processing episodes (for server restart recovery)
+  resetStaleProcessingEpisodes: () => {
+      return db.prepare("UPDATE episodes SET status = 'error' WHERE status = 'processing'").run();
+  },
+  // Get episodes by multiple IDs (for status polling)
+  getEpisodesByIds: (ids) => {
+      if (!ids || ids.length === 0) return [];
+      const placeholders = ids.map(() => '?').join(',');
+      return db.prepare(`SELECT id, youtube_id, status, file_path, user_id FROM episodes WHERE id IN (${placeholders})`).all(...ids);
   }
 };
