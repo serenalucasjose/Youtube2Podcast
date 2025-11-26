@@ -329,6 +329,23 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
     background-color: #252f3f; /* Slightly lighter background during processing */
 }
 
+/* Translation in progress animation */
+@keyframes pulse-translate {
+    0%, 100% { 
+        border-color: #0e7490; 
+        box-shadow: 0 0 0 0 rgba(14, 116, 144, 0.4);
+    }
+    50% { 
+        border-color: #06b6d4; 
+        box-shadow: 0 0 15px 2px rgba(6, 182, 212, 0.5);
+    }
+}
+
+.episode-card.translating {
+    animation: pulse-translate 1.5s infinite ease-in-out;
+    border-color: #0e7490;
+}
+
 .animate-spin {
     animation: spin 1s linear infinite;
 }
@@ -527,6 +544,45 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
 
 .custom-audio-player.playing .audio-play-btn:hover {
     box-shadow: 0 4px 12px rgba(34, 197, 94, 0.6);
+}
+
+/* === TRANSLATED AUDIO PLAYER (Spanish) === */
+.custom-audio-player.translated-player {
+    background: linear-gradient(135deg, #0c4a6e 0%, #164e63 100%);
+    border-color: #0e7490;
+    margin-top: 0.5rem;
+}
+
+.custom-audio-player.translated-player .audio-play-btn {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    box-shadow: 0 2px 8px rgba(6, 182, 212, 0.4);
+}
+
+.custom-audio-player.translated-player .audio-play-btn:hover {
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.6);
+}
+
+.custom-audio-player.translated-player.playing .audio-play-btn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.custom-audio-player.translated-player .audio-progress-fill {
+    background: linear-gradient(90deg, #06b6d4, #22d3ee);
+}
+
+/* Language Badge */
+.audio-lang-badge {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #22d3ee;
+    background: rgba(6, 182, 212, 0.2);
+    border: 1px solid rgba(6, 182, 212, 0.4);
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 0.25rem;
 }
 
 /* === WALK MODE OVERLAY RESPONSIVE === */

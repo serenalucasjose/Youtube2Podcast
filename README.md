@@ -1,10 +1,11 @@
 # Youtube2Podcast (Raspberry Pi Edition)
 
-Esta aplicación permite descargar audios de YouTube, convertirlos a MP3 con carátula (album art) y servirlos localmente para ser consumidos como un podcast personal.
+Esta aplicación permite descargar audios de YouTube, convertirlos a MP3 con carátula (album art) y servirlos localmente para ser consumidos como un podcast personal. Incluye un pipeline de traducción automática (inglés → español) usando modelos de IA locales.
 
 ## Características
 
 *   **Descarga y Conversión Eficiente**: Convierte videos de YouTube a **MP3** incrustando el thumbnail original como carátula. Esto reduce drásticamente el espacio ocupado en comparación con videos.
+*   **Traducción al Español**: Pipeline STT → Traducción → TTS para convertir podcasts en inglés a español (procesamiento local, sin APIs externas).
 *   **Gestión de Usuarios**: Sistema de login y aislamiento de contenido por usuario.
 *   **Gestión de Episodios**: Los usuarios pueden agregar y **eliminar** sus propios episodios (uno a uno o selección múltiple).
 *   **Reproductor Nativo**: Opción para abrir los archivos directamente en el reproductor de audio nativo de tu dispositivo (ideal para móviles).
@@ -14,27 +15,85 @@ Esta aplicación permite descargar audios de YouTube, convertirlos a MP3 con car
 
 ## Requisitos
 
-- Raspberry Pi (o cualquier sistema Linux)
+- Raspberry Pi 4 (4GB+ RAM recomendado) o cualquier sistema Linux
 - Node.js 18+
 - FFmpeg
-- Python 3 (para yt-dlp)
+- Python 3.9+ (para yt-dlp y pipeline de traducción)
 
 ## Instalación
 
-1. Clonar el repositorio o copiar los archivos.
-2. Ejecutar el script de instalación de dependencias del sistema:
-   ```bash
-   chmod +x scripts/install_dependencies.sh
-   ./scripts/install_dependencies.sh
-   ```
-3. Instalar dependencias de Node:
-   ```bash
-   npm install
-   ```
-4. Construir los estilos (opcional, ya que se incluye el CSS):
-   ```bash
-   npm run build:css
-   ```
+### 1. Clonar el repositorio
+
+```bash
+git clone <url-del-repo>
+cd Youtube2Podcast
+```
+
+### 2. Instalar dependencias del sistema y Python
+
+```bash
+chmod +x scripts/install_dependencies.sh
+./scripts/install_dependencies.sh
+```
+
+Este script:
+- Instala FFmpeg, Python, y dependencias de compilación para ARM
+- Crea un entorno virtual Python (`venv/`)
+- Instala las dependencias de Python para el pipeline de traducción
+- Crea el directorio `models/`
+
+### 3. Descargar modelos de IA (para traducción)
+
+```bash
+source venv/bin/activate
+python scripts/download_models.py
+```
+
+> **Nota**: La primera descarga puede tardar varios minutos (~500MB en total).
+
+Los modelos descargados son:
+| Modelo | Tamaño | Función |
+|--------|--------|---------|
+| `faster-whisper` (tiny) | ~75 MB | Speech-to-Text (inglés) |
+| `Helsinki-NLP/opus-mt-en-es` | ~200 MB | Traducción EN→ES |
+| `edge-tts` | N/A (online) | Text-to-Speech (español, usa Microsoft Edge) |
+
+> **Nota**: `edge-tts` requiere conexión a internet ya que usa los servicios de Microsoft Edge TTS.
+
+### 4. Instalar dependencias de Node.js
+
+```bash
+npm install
+```
+
+### 5. Construir estilos (opcional)
+
+```bash
+npm run build:css
+```
+
+## Configuración para Raspberry Pi 4
+
+Para un rendimiento óptimo en Raspberry Pi 4:
+
+### Habilitar Swap (recomendado 2GB+)
+
+```bash
+sudo dphys-swapfile swapoff
+sudo nano /etc/dphys-swapfile  # Cambiar CONF_SWAPSIZE=2048
+sudo dphys-swapfile setup
+sudo dphys-swapfile swapon
+```
+
+### Variables de entorno opcionales
+
+Crear un archivo `.env`:
+
+```env
+PORT=3000
+SESSION_SECRET=tu_secreto_seguro
+ENABLE_LOGS=true
+```
 
 ## Ejecución
 
@@ -55,8 +114,22 @@ La aplicación estará disponible en `http://localhost:3000` (o la IP de tu Rasp
     - Usa el reproductor web integrado.
     - O haz clic en **"Abrir"** para usar tu app de música favorita.
     - O haz clic en **"Descargar"** para guardar el archivo.
-5. **Gestión**: Selecciona episodios con el checkbox para borrarlos en lote, o usa el icono de papelera en cada tarjeta.
-6. **Modo Caminata**: Actívalo desde el menú superior para bloquear la pantalla. Mantén presionado el círculo central para desbloquear.
+5. **Traducir al Español** (nuevo):
+    - Una vez que el episodio esté listo, haz clic en el icono de **traducción** (🌐).
+    - El proceso de traducción se ejecuta en segundo plano (STT → Traducción → TTS).
+    - Cuando termine, aparecerá un nuevo botón para **descargar la versión en español**.
+6. **Gestión**: Selecciona episodios con el checkbox para borrarlos en lote, o usa el icono de papelera en cada tarjeta.
+7. **Modo Caminata**: Actívalo desde el menú superior para bloquear la pantalla. Mantén presionado el círculo central para desbloquear.
+
+### Tiempos de Traducción (Raspberry Pi 4)
+
+| Duración del audio | Tiempo aprox. de traducción |
+|--------------------|----------------------------|
+| 1 minuto | ~30 segundos |
+| 10 minutos | ~5 minutos |
+| 1 hora | ~30-40 minutos |
+
+> **Nota**: Los tiempos varían según la complejidad del audio y la carga del sistema.
 
 ## Credenciales por Defecto
 
@@ -73,13 +146,45 @@ El sistema crea automáticamente usuarios al iniciar si no existen:
 
 ## Estructura de Carpetas
 
-- `data/`: Base de datos SQLite (`youtube2podcast.db`) y Sesiones.
-- `downloads/`: Archivos MP3 generados.
-- `src/`: Código fuente.
-- `views/`: Plantillas EJS.
+```
+Youtube2Podcast/
+├── data/                  # Base de datos SQLite y sesiones
+├── downloads/             # Archivos MP3 generados (originales y traducidos)
+├── models/                # Directorio para modelos de IA (ver README interno)
+├── scripts/
+│   ├── install_dependencies.sh   # Script de instalación
+│   ├── download_models.py        # Descarga de modelos de IA
+│   └── process_translation.py    # Pipeline de traducción (Python)
+├── src/
+│   ├── index.js                  # Servidor Express principal
+│   ├── db.js                     # Gestión de base de datos
+│   ├── downloader.js             # Descarga de videos
+│   └── translation_service.js    # Servicio de traducción (Node.js wrapper)
+├── views/                 # Plantillas EJS
+├── public/                # Assets estáticos (CSS, JS, iconos)
+├── requirements.txt       # Dependencias Python
+└── package.json           # Dependencias Node.js
+```
 
 ## Notas Técnicas
 
 - La base de datos se migra automáticamente al iniciar.
 - Las descargas continúan en segundo plano incluso si cierras la pestaña (el servidor debe seguir corriendo).
 - Los archivos antiguos MP4 siguen siendo soportados y se visualizarán en el reproductor de video antiguo.
+- El pipeline de traducción se ejecuta en un proceso Python separado para no bloquear el servidor Node.js.
+- Los modelos de IA se cachean en `~/.cache/huggingface/` después de la primera descarga.
+
+## Solución de Problemas
+
+### Error: "No se pudo iniciar la traducción"
+- Verifica que el entorno virtual esté activo: `source venv/bin/activate`
+- Asegúrate de que los modelos estén descargados: `python scripts/download_models.py`
+
+### La traducción es muy lenta
+- Habilita más swap (ver sección de configuración para Raspberry Pi)
+- Cierra otras aplicaciones que consuman memoria
+- El modelo `tiny` de Whisper es el más rápido; no cambies a `base` o `small` en Raspberry Pi
+
+### Error de memoria (OOM)
+- Aumenta el swap a 4GB si es posible
+- Procesa audios más cortos (< 30 minutos)

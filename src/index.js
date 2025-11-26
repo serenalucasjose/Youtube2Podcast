@@ -7,6 +7,7 @@ const SQLiteStore = require('connect-sqlite3')(session);
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 const downloader = require('./downloader');
+const translationService = require('./translation_service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -91,10 +92,16 @@ app.get('/progress', requireAuth, (req, res) => {
         res.write(`data: ${JSON.stringify(data)}\n\n`);
     };
 
+    const onTranslationProgress = (data) => {
+        res.write(`data: ${JSON.stringify({ ...data, type: 'translation' })}\n\n`);
+    };
+
     downloader.progressEmitter.on('progress', onProgress);
+    translationService.translationEmitter.on('progress', onTranslationProgress);
 
     req.on('close', () => {
         downloader.progressEmitter.off('progress', onProgress);
+        translationService.translationEmitter.off('progress', onTranslationProgress);
     });
 });
 
@@ -169,6 +176,9 @@ app.post('/delete', requireAuth, (req, res) => {
                     }
                 }
                 
+                // Delete translated file if exists
+                translationService.cleanupTranslatedFile(episode);
+                
                 // Delete any temp files associated with this episode (by youtube_id)
                 if (episode.youtube_id && fs.existsSync(tempDir)) {
                     try {
@@ -213,6 +223,63 @@ app.get('/download/:id', requireAuth, (req, res) => {
     const filePath = path.join(__dirname, '../downloads', episode.file_path);
     const ext = path.extname(episode.file_path);
     res.download(filePath, `${episode.title}${ext}`);
+});
+
+// Translate Episode (Manual trigger)
+app.post('/translate/:id', requireAuth, async (req, res) => {
+    const episode = db.getEpisodeById(req.params.id);
+    
+    if (!episode) {
+        return res.status(404).json({ error: 'Episodio no encontrado' });
+    }
+    
+    // Check ownership
+    if (episode.user_id !== req.session.userId && req.session.role !== 'admin') {
+        return res.status(403).json({ error: 'No autorizado' });
+    }
+
+    if (episode.status !== 'ready') {
+        return res.status(400).json({ error: 'El video aún no está listo' });
+    }
+
+    try {
+        const updatedEpisode = await translationService.startTranslation(episode.id);
+        res.json({ 
+            success: true, 
+            message: 'Traducción iniciada',
+            episode: updatedEpisode
+        });
+    } catch (error) {
+        console.error('Error starting translation:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Download Translated Episode
+app.get('/download-translated/:id', requireAuth, (req, res) => {
+    const episode = db.getEpisodeById(req.params.id);
+    
+    if (!episode) {
+        return res.status(404).send('Episodio no encontrado');
+    }
+    
+    // Check ownership
+    if (episode.user_id !== req.session.userId && req.session.role !== 'admin') {
+        return res.status(403).send('No autorizado');
+    }
+
+    if (episode.translation_status !== 'ready' || !episode.translated_file_path) {
+        return res.status(400).send('Traducción no disponible');
+    }
+
+    const filePath = path.join(__dirname, '../downloads', episode.translated_file_path);
+    
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).send('Archivo no encontrado');
+    }
+    
+    const ext = path.extname(episode.translated_file_path);
+    res.download(filePath, `${episode.title} (Español)${ext}`);
 });
 
 // Admin Panel

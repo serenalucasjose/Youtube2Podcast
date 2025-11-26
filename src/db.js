@@ -44,6 +44,12 @@ if (!columnNames.includes('status')) {
 if (!columnNames.includes('thumbnail_url')) {
     db.exec("ALTER TABLE episodes ADD COLUMN thumbnail_url TEXT");
 }
+if (!columnNames.includes('translation_status')) {
+    db.exec("ALTER TABLE episodes ADD COLUMN translation_status TEXT"); // null, 'processing', 'ready', 'error'
+}
+if (!columnNames.includes('translated_file_path')) {
+    db.exec("ALTER TABLE episodes ADD COLUMN translated_file_path TEXT");
+}
 
 // Seed Users
 const seedUsers = () => {
@@ -167,6 +173,21 @@ module.exports = {
   getEpisodesByIds: (ids) => {
       if (!ids || ids.length === 0) return [];
       const placeholders = ids.map(() => '?').join(',');
-      return db.prepare(`SELECT id, youtube_id, status, file_path, user_id FROM episodes WHERE id IN (${placeholders})`).all(...ids);
+      return db.prepare(`SELECT id, youtube_id, status, file_path, user_id, translation_status, translated_file_path FROM episodes WHERE id IN (${placeholders})`).all(...ids);
+  },
+  // Translation status management
+  updateTranslationStatus: (youtubeId, status, translatedFilePath = null) => {
+      if (translatedFilePath) {
+          return db.prepare('UPDATE episodes SET translation_status = ?, translated_file_path = ? WHERE youtube_id = ?').run(status, translatedFilePath, youtubeId);
+      } else {
+          return db.prepare('UPDATE episodes SET translation_status = ? WHERE youtube_id = ?').run(status, youtubeId);
+      }
+  },
+  updateTranslationStatusById: (id, status, translatedFilePath = null) => {
+      if (translatedFilePath) {
+          return db.prepare('UPDATE episodes SET translation_status = ?, translated_file_path = ? WHERE id = ?').run(status, translatedFilePath, id);
+      } else {
+          return db.prepare('UPDATE episodes SET translation_status = ? WHERE id = ?').run(status, id);
+      }
   }
 };

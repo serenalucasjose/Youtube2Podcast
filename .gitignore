@@ -118,3 +118,15 @@ downloads/
 data/
 !data/.gitkeep
 
+# Python virtual environment
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Hugging Face model cache (downloaded models)
+models/*.bin
+models/*.pt
+models/*.onnx
+!models/README.md

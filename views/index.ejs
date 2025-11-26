@@ -90,8 +90,9 @@
                 <% episodes.forEach(episode => { 
                     const isMp3 = episode.file_path && episode.file_path.endsWith('.mp3');
                     const isProcessing = episode.status === 'processing';
+                    const isTranslating = episode.translation_status === 'processing';
                 %>
-                    <div class="episode-card group <%= isProcessing ? 'processing' : '' %>" data-youtube-id="<%= episode.youtube_id %>">
+                    <div class="episode-card group <%= isProcessing ? 'processing' : '' %> <%= isTranslating ? 'translating' : '' %>" data-youtube-id="<%= episode.youtube_id %>" data-episode-id="<%= episode.id %>">
                         
                         <!-- Checkbox (Left) -->
                         <div class="card-checkbox-container">
@@ -117,13 +118,43 @@
                                 <!-- Actions -->
                                 <div class="flex items-center gap-3">
                                     <% if (episode.status === 'ready') { %>
-                                        <!-- Reload / Re-download Button (Hidden for now, maybe useful?) -->
+                                        <!-- Translation Actions -->
+                                        <% if (episode.translation_status === 'ready' && episode.translated_file_path) { %>
+                                            <!-- Download Translated -->
+                                            <a href="/download-translated/<%= episode.id %>" class="text-green-400 hover:text-green-300 transition" title="Descargar en Español">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
+                                                </svg>
+                                            </a>
+                                        <% } else if (episode.translation_status === 'processing') { %>
+                                            <!-- Translation Processing -->
+                                            <span class="text-yellow-400" title="Traduciendo...">
+                                                <svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
+                                                </svg>
+                                            </span>
+                                        <% } else if (episode.translation_status === 'error') { %>
+                                            <!-- Translation Error - Retry -->
+                                            <button type="button" onclick="startTranslation('<%= episode.id %>')" class="text-red-400 hover:text-red-300 transition" title="Error en traducción - Reintentar">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
+                                                </svg>
+                                            </button>
+                                        <% } else { %>
+                                            <!-- Start Translation -->
+                                            <button type="button" onclick="startTranslation('<%= episode.id %>')" class="text-gray-400 hover:text-yellow-400 transition" title="Traducir al Español">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
+                                                </svg>
+                                            </button>
+                                        <% } %>
+                                        
                                         <!-- Open Native -->
                                         <a href="/downloads/<%= episode.file_path %>" target="_blank" class="text-gray-400 hover:text-white transition" title="Abrir nativo">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                                         </a>
                                         <!-- Download -->
-                                        <a href="/download/<%= episode.id %>" class="text-gray-400 hover:text-blue-400 transition" title="Descargar">
+                                        <a href="/download/<%= episode.id %>" class="text-gray-400 hover:text-blue-400 transition" title="Descargar Original">
                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                         </a>
                                     <% } else if (isProcessing) { %>
@@ -138,7 +169,7 @@
                                 </div>
                             </div>
 
-                            <!-- Audio Player (Custom) -->
+                            <!-- Audio Player (Custom) - Original -->
                             <% if (episode.status === 'ready' && isMp3) { %>
                                 <div class="custom-audio-player" data-src="/downloads/<%= episode.file_path %>">
                                     <button class="audio-play-btn" type="button" aria-label="Play">
@@ -160,6 +191,33 @@
                                     </div>
                                     <audio preload="none">
                                         <source src="/downloads/<%= episode.file_path %>" type="audio/mpeg">
+                                    </audio>
+                                </div>
+                            <% } %>
+
+                            <!-- Audio Player (Custom) - Traducción Español -->
+                            <% if (episode.translation_status === 'ready' && episode.translated_file_path) { %>
+                                <div class="custom-audio-player translated-player" data-src="/downloads/<%= episode.translated_file_path %>">
+                                    <span class="audio-lang-badge">ES</span>
+                                    <button class="audio-play-btn" type="button" aria-label="Play Traducción">
+                                        <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                                        <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                    </button>
+                                    <div class="audio-progress-container">
+                                        <input type="range" class="audio-progress" value="0" min="0" max="100" step="0.1">
+                                        <div class="audio-progress-fill"></div>
+                                    </div>
+                                    <span class="audio-time">0:00</span>
+                                    <span class="audio-duration">/ 0:00</span>
+                                    <div class="audio-volume-container">
+                                        <button class="audio-volume-btn" type="button" aria-label="Volume">
+                                            <svg class="volume-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                                            <svg class="mute-icon hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+                                        </button>
+                                        <input type="range" class="audio-volume" value="80" min="0" max="100">
+                                    </div>
+                                    <audio preload="none">
+                                        <source src="/downloads/<%= episode.translated_file_path %>" type="audio/wav">
                                     </audio>
                                 </div>
                             <% } %>
@@ -264,18 +322,59 @@
             }
         }
 
-        // SSE for auto-reload when download completes
-        const evtSource = new EventSource('/progress');
-        evtSource.onmessage = function(event) {
+        // SSE for auto-reload when download/translation completes
+        let evtSource = null;
+        
+        function connectSSE() {
+            if (evtSource) {
+                evtSource.close();
+            }
+            
+            evtSource = new EventSource('/progress');
+            
+            evtSource.onerror = function(err) {
+                console.warn('SSE connection error, will retry...', err);
+                evtSource.close();
+                // Reconnect after 3 seconds
+                setTimeout(connectSSE, 3000);
+            };
+            
+            evtSource.onmessage = handleSSEMessage;
+        }
+        
+        function handleSSEMessage(event) {
             const data = JSON.parse(event.data);
             console.log('SSE Event:', data);
 
+            // Handle translation events
+            if (data.type === 'translation') {
+                console.log('Translation SSE event:', data);
+                if (data.translationStatus === 'ready') {
+                    console.log('Translation ready, reloading...');
+                    window.location.reload();
+                } else if (data.translationStatus === 'error') {
+                    updateTranslationError(data.videoId);
+                } else if (data.translationStatus === 'processing') {
+                    updateTranslationProgress(data.videoId, data.stage, data.percent, data.message);
+                    // Mark card as translating if not already
+                    const card = document.querySelector(`.episode-card[data-youtube-id="${data.videoId}"]`);
+                    if (card && !card.classList.contains('translating')) {
+                        card.classList.add('translating');
+                    }
+                }
+                return;
+            }
+
+            // Handle download events
             if (data.status === 'done') {
                 window.location.reload();
             } else if (data.status === 'error') {
                 updateCardToError(data.videoId);
             }
-        };
+        }
+        
+        // Initialize SSE connection
+        connectSSE();
 
         // Helper function to update a card to error state
         function updateCardToError(videoId) {
@@ -298,14 +397,50 @@
             }
         }
 
+        // Translation Functions
+        async function startTranslation(episodeId) {
+            try {
+                const response = await fetch(`/translate/${episodeId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Reload to show processing state
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'No se pudo iniciar la traducción'));
+                }
+            } catch (err) {
+                console.error('Translation error:', err);
+                alert('Error de conexión al iniciar la traducción');
+            }
+        }
+
+        function updateTranslationProgress(videoId, stage, percent, message) {
+            const card = document.querySelector(`.episode-card[data-youtube-id="${videoId}"]`);
+            if (card) {
+                // Could add a progress indicator here if desired
+                console.log(`Translation progress [${videoId}]: ${stage} - ${percent}% - ${message}`);
+            }
+        }
+
+        function updateTranslationError(videoId) {
+            // Reload to show error state with retry button
+            window.location.reload();
+        }
+
         // Polling fallback for state sync (runs every 10s if there are processing items)
         // This handles cases where SSE events are missed (network issues, server restart, etc.)
         function getProcessingEpisodeIds() {
-            const processingCards = document.querySelectorAll('.episode-card.processing');
+            // Include both downloading and translating episodes
+            const processingCards = document.querySelectorAll('.episode-card.processing, .episode-card.translating');
             const ids = [];
             processingCards.forEach(card => {
-                const checkbox = card.querySelector('input[name="ids"]');
-                if (checkbox) ids.push(checkbox.value);
+                const episodeId = card.dataset.episodeId;
+                if (episodeId) ids.push(episodeId);
             });
             return ids;
         }
@@ -326,6 +461,10 @@
                         shouldReload = true;
                     } else if (ep.status === 'error') {
                         updateCardToError(ep.youtube_id);
+                    }
+                    // Check translation status changes
+                    if (ep.translation_status === 'ready' || ep.translation_status === 'error') {
+                        shouldReload = true;
                     }
                 });
 

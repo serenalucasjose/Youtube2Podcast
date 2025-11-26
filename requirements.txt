@@ -1,0 +1,24 @@
+# Translation Pipeline Dependencies
+# Optimized for CPU-only environments (Raspberry Pi 4 / ARM64)
+# Compatible with Python 3.10-3.12
+
+# STT - Speech to Text (faster-whisper uses CTranslate2, much faster than OpenAI whisper)
+faster-whisper>=1.0.0
+
+# Translation - Helsinki-NLP models via Hugging Face
+transformers>=4.36.0
+sentencepiece>=0.1.99
+
+# TTS - Text to Speech 
+# Using pyttsx3 as fallback for Python 3.12 compatibility
+# For better quality, use gTTS (Google TTS) or edge-tts (Microsoft Edge TTS)
+edge-tts>=6.1.0
+pydub>=0.25.1
+
+# Audio processing
+scipy>=1.11.0
+numpy>=1.24.0
+
+# Torch CPU-only (required by faster-whisper and transformers)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.0.0
