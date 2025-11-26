@@ -748,10 +748,89 @@
             
             .admin-main {
                 margin-left: 0;
+                width: 100%;
+                overflow-x: hidden;
             }
             
             .kpi-grid {
                 grid-template-columns: 1fr 1fr;
+            }
+            
+            .admin-header {
+                padding: 0 1rem;
+            }
+            
+            .admin-content {
+                padding: 1rem;
+            }
+            
+            /* Mobile menu button */
+            .mobile-menu-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 40px;
+                height: 40px;
+                background: var(--bg-tertiary);
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                color: var(--text-secondary);
+                cursor: pointer;
+                margin-right: 1rem;
+            }
+            
+            .mobile-menu-btn:hover {
+                background: var(--input-bg);
+                color: var(--text-primary);
+            }
+            
+            /* Sidebar overlay */
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 49;
+            }
+            
+            .sidebar-overlay.active {
+                display: block;
+            }
+            
+            /* Table responsive */
+            .data-table-container {
+                overflow-x: auto;
+            }
+            
+            .data-table th,
+            .data-table td {
+                padding: 0.75rem 1rem;
+                font-size: 0.8rem;
+            }
+            
+            /* Form grid mobile */
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-menu-btn {
+                display: none;
+            }
+            
+            .sidebar-overlay {
+                display: none !important;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .kpi-value {
+                font-size: 1.5rem;
             }
         }
         
@@ -836,10 +915,18 @@
         </div>
     </aside>
     
+    <!-- Sidebar Overlay (mobile) -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    
     <!-- Main Content -->
     <main class="admin-main">
         <header class="admin-header">
-            <h1 class="header-title" id="header-title">Dashboard</h1>
+            <div style="display: flex; align-items: center;">
+                <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Abrir menú">
+                    <i class="bi bi-list" style="font-size: 1.25rem;"></i>
+                </button>
+                <h1 class="header-title" id="header-title">Dashboard</h1>
+            </div>
             <div class="header-actions">
                 <button id="theme-toggle-btn" title="Cambiar tema" aria-label="Cambiar tema" style="background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 0.5rem; border-radius: 0.5rem; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--bg-tertiary)'" onmouseout="this.style.backgroundColor='transparent'">
                     <i id="theme-icon-dark" class="bi bi-moon-fill text-xl"></i>
@@ -1202,6 +1289,26 @@
 </div>
 
 <script>
+    // Mobile Menu Toggle
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const sidebar = document.querySelector('.admin-sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    
+    function openSidebar() {
+        sidebar.classList.add('open');
+        sidebarOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function closeSidebar() {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    
+    mobileMenuBtn.addEventListener('click', openSidebar);
+    sidebarOverlay.addEventListener('click', closeSidebar);
+    
     // Tab Navigation
     const navItems = document.querySelectorAll('.nav-item[data-tab]');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -1229,6 +1336,9 @@
             
             // Update header title
             headerTitle.textContent = tabTitles[tab] || 'Dashboard';
+            
+            // Close sidebar on mobile after selecting tab
+            closeSidebar();
         });
     });
     

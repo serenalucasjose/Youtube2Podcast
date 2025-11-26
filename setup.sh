@@ -344,36 +344,78 @@ step_download_models() {
 }
 
 step_start_server() {
-    print_header "PASO 7: Iniciar Servidor"
+    print_header "PASO 7: Configurar Servicio con PM2"
     
-    print_info "La aplicación está lista para ejecutarse."
+    print_info "La aplicación se ejecutará como servicio con PM2."
     echo ""
     echo "  • Puerto: ${CYAN}3000${NC} (o el configurado en .env)"
-    echo "  • URL: ${CYAN}http://localhost:3000${NC}"
     echo ""
     print_info "Credenciales por defecto:"
     echo "  • Admin: admin / admin"
     echo "  • Usuario: user / user"
     echo ""
     
-    if confirm "¿Iniciar el servidor ahora?"; then
-        print_step "Iniciando servidor con npm start..."
+    # Verificar si PM2 está instalado
+    if ! command_exists pm2; then
+        print_warning "PM2 no está instalado."
+        if confirm "¿Instalar PM2 globalmente?"; then
+            print_step "Instalando PM2..."
+            npm install -g pm2
+            if [[ $? -ne 0 ]]; then
+                print_error "Error instalando PM2"
+                return 1
+            fi
+            print_success "PM2 instalado correctamente"
+        else
+            print_info "Paso omitido por el usuario"
+            print_warning "Instala PM2 manualmente con: npm install -g pm2"
+            return 0
+        fi
+    else
+        print_success "PM2 ya está instalado"
+    fi
+    
+    echo ""
+    if confirm "¿Iniciar el servicio con PM2 ahora?"; then
         echo ""
-        print_info "Presiona Ctrl+C para detener el servidor"
+        echo -ne "${CYAN}Nombre del servicio PM2 [youtube2podcast]: ${NC}"
+        read -r service_name
+        
+        # Usar nombre por defecto si está vacío
+        if [[ -z "$service_name" ]]; then
+            service_name="youtube2podcast"
+        fi
+        
+        print_step "Iniciando servicio '$service_name' con PM2..."
         echo ""
         
         cd "$PROJECT_DIR"
-        npm start
+        pm2 start src/index.js --name "$service_name"
+        
+        if [[ $? -eq 0 ]]; then
+            echo ""
+            print_success "Servicio '$service_name' iniciado correctamente"
+            echo ""
+            print_info "Comandos útiles de PM2:"
+            echo "  • Ver estado:    pm2 status"
+            echo "  • Ver logs:      pm2 logs $service_name"
+            echo "  • Reiniciar:     pm2 restart $service_name"
+            echo "  • Detener:       pm2 stop $service_name"
+            echo "  • Eliminar:      pm2 delete $service_name"
+            echo ""
+            print_info "Para que PM2 inicie automáticamente con el sistema:"
+            echo "  pm2 save"
+            echo "  pm2 startup"
+        else
+            print_error "Error iniciando el servicio con PM2"
+            return 1
+        fi
     else
-        print_info "Servidor no iniciado"
+        print_info "Servicio no iniciado"
         echo ""
-        print_info "Para iniciar el servidor más tarde, ejecuta:"
+        print_info "Para iniciar el servicio más tarde, ejecuta:"
         echo "  cd $PROJECT_DIR"
-        echo "  npm start"
-        echo ""
-        print_info "Para ejecutar en segundo plano con PM2:"
-        echo "  npm install -g pm2"
-        echo "  pm2 start src/index.js --name youtube2podcast"
+        echo "  pm2 start src/index.js --name <nombre-servicio>"
     fi
 }
 

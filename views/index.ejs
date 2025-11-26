@@ -27,46 +27,135 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
 
-    <nav class="bg-white dark:bg-gray-800 shadow-lg sticky top-0 z-50 transition-colors duration-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between py-2 items-center">
-                <div class="flex items-center gap-4">
-                    <img src="/icons/logo.png" alt="Youtube2Podcast" class="w-auto rounded-sm" style="max-width: 80px;">
-                    <span class="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300">v1.5</span>
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-menu-overlay" class="fixed inset-0 bg-black/60 z-[60] transition-opacity duration-300" style="display: none; opacity: 0;"></div>
+    
+    <!-- Mobile Sidebar Menu -->
+    <aside id="mobile-sidebar" class="fixed top-0 left-0 h-full w-72 bg-white dark:bg-gray-800 z-[70] shadow-2xl flex flex-col transition-transform duration-300 ease-in-out" style="transform: translateX(-100%);">
+        <!-- Sidebar Header -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center gap-3">
+                <img src="/icons/logo.png" alt="Youtube2Podcast" class="w-10 h-10 rounded-sm">
+                <div>
+                    <span class="font-semibold text-gray-900 dark:text-white">Youtube2Podcast</span>
+                    <span class="ml-2 text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300">v1.5</span>
                 </div>
-                <div class="flex items-center gap-4">
+            </div>
+            <button id="close-mobile-menu-btn" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i class="bi bi-x-lg text-xl"></i>
+            </button>
+        </div>
+        
+        <!-- User Info -->
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-bold">
+                    <%= user.charAt(0).toUpperCase() %>
+                </div>
+                <div>
+                    <p class="font-medium text-gray-900 dark:text-white"><%= user %></p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Videos: <%= episodeCount %>/<%= quotaLimit %></p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Menu Items -->
+        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+            <!-- Theme Toggle -->
+            <button id="mobile-theme-toggle" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i id="mobile-theme-icon-dark" class="bi bi-moon-fill text-lg"></i>
+                <i id="mobile-theme-icon-light" class="bi bi-sun-fill text-lg text-yellow-500 hidden"></i>
+                <span id="mobile-theme-label">Modo Oscuro</span>
+            </button>
+            
+            <!-- Push Notifications -->
+            <button id="mobile-push-btn" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i id="mobile-push-icon-off" class="bi bi-bell text-lg"></i>
+                <i id="mobile-push-icon-on" class="bi bi-bell-fill text-lg text-green-500 hidden"></i>
+                <span id="mobile-push-label">Notificaciones Push</span>
+            </button>
+            
+            <!-- Walk Mode -->
+            <button id="mobile-walk-mode-btn" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i class="bi bi-person-walking text-lg"></i>
+                <span>Modo Caminata</span>
+            </button>
+            
+            <!-- Sleep Timer -->
+            <button id="mobile-sleep-timer-btn" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i class="bi bi-stopwatch text-lg"></i>
+                <span>Temporizador de Sueño</span>
+                <span id="mobile-timer-badge" class="hidden ml-auto text-xs bg-orange-500 text-white rounded px-2 py-0.5 font-medium"></span>
+            </button>
+            
+            <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
+            <div class="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
+                <a href="/admin" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <i class="bi bi-gear-fill text-lg"></i>
+                    <span>Panel de Admin</span>
+                </a>
+            </div>
+            <% } %>
+        </nav>
+        
+        <!-- Logout -->
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+            <a href="/logout" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                <i class="bi bi-box-arrow-left text-lg"></i>
+                <span>Cerrar Sesión</span>
+            </a>
+        </div>
+    </aside>
+
+    <nav class="bg-white dark:bg-gray-800 shadow-lg sticky top-0 z-50 transition-colors duration-200 overflow-x-hidden">
+        <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+            <div class="flex justify-between py-2 items-center gap-2">
+                <!-- Mobile Menu Button + Logo -->
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <!-- Hamburger Button - visible on mobile only -->
+                    <button id="open-mobile-menu-btn" class="lg:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <i class="bi bi-list text-2xl"></i>
+                    </button>
+                    <img src="/icons/logo.png" alt="Youtube2Podcast" class="w-auto rounded-sm hidden xs:block" style="max-width: 60px;">
+                    <span class="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300 hidden sm:inline">v1.5</span>
+                </div>
+                
+                <!-- Right side controls -->
+                <div class="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
                     <!-- Push Notifications Toggle -->
-                    <button id="push-notifications-btn" title="Notificaciones Push" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white relative">
-                        <i id="push-icon-off" class="bi bi-bell text-xl"></i>
-                        <i id="push-icon-on" class="bi bi-bell-fill text-xl hidden text-green-500"></i>
+                    <button id="push-notifications-btn" title="Notificaciones Push" class="nav-icon-btn text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white relative">
+                        <i id="push-icon-off" class="bi bi-bell text-lg sm:text-xl"></i>
+                        <i id="push-icon-on" class="bi bi-bell-fill text-lg sm:text-xl hidden text-green-500"></i>
                         <span id="push-badge" class="hidden absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></span>
                     </button>
                     
                     <!-- Theme Toggle -->
-                    <button id="theme-toggle-btn" title="Cambiar tema" aria-label="Cambiar tema" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                        <i id="theme-icon-dark" class="bi bi-moon-fill text-xl"></i>
-                        <i id="theme-icon-light" class="bi bi-sun-fill text-xl hidden text-yellow-500"></i>
+                    <button id="theme-toggle-btn" title="Cambiar tema" aria-label="Cambiar tema" class="nav-icon-btn text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <i id="theme-icon-dark" class="bi bi-moon-fill text-lg sm:text-xl"></i>
+                        <i id="theme-icon-light" class="bi bi-sun-fill text-lg sm:text-xl hidden text-yellow-500"></i>
                     </button>
                     
-                    <button id="walk-mode-btn" title="Activar Modo Caminata" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
-                        <i class="bi bi-person-walking text-xl"></i>
+                    <!-- Walk Mode - hidden on very small screens -->
+                    <button id="walk-mode-btn" title="Activar Modo Caminata" class="nav-icon-btn text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hidden sm:flex">
+                        <i class="bi bi-person-walking text-lg sm:text-xl"></i>
                     </button>
                     
                     <!-- Sleep Timer -->
-                    <button id="sleep-timer-btn" title="Temporizador de Sueño" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white relative">
-                        <i class="bi bi-stopwatch text-xl"></i>
+                    <button id="sleep-timer-btn" title="Temporizador de Sueño" class="nav-icon-btn text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white relative">
+                        <i class="bi bi-stopwatch text-lg sm:text-xl"></i>
                     </button>
-                    <span id="timer-badge" class="hidden text-[8px] bg-orange-500 text-white rounded px-1 py-0.5 font-medium ml-0.5"></span>
+                    <span id="timer-badge" class="hidden text-[8px] bg-orange-500 text-white rounded px-1 py-0.5 font-medium"></span>
                     
-                    <div class="flex items-center gap-2 md:gap-4">
-                        <span class="text-gray-500 dark:text-gray-400 text-sm hidden md:inline"><%= user %></span>
-                        <span class="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300" title="Videos usados">
+                    <!-- User info and actions -->
+                    <div class="flex items-center gap-1 sm:gap-2 ml-1 sm:ml-2 pl-1 sm:pl-2 border-l border-gray-300 dark:border-gray-600">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs hidden md:inline"><%= user %></span>
+                        <span class="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300" title="Videos usados">
                             <%= episodeCount %>/<%= quotaLimit %>
                         </span>
                         <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
-                            <a href="/admin" class="admin-link text-sm">Admin</a>
+                            <a href="/admin" class="admin-link text-xs sm:text-sm">Admin</a>
                         <% } %>
-                        <a href="/logout" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-sm">Salir</a>
+                        <a href="/logout" class="nav-icon-btn text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs sm:text-sm whitespace-nowrap">Salir</a>
                     </div>
                 </div>
             </div>
@@ -339,6 +428,44 @@
     </div>
 
     <script>
+        // === Mobile Menu ===
+        const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+        const mobileSidebar = document.getElementById('mobile-sidebar');
+        const openMobileMenuBtn = document.getElementById('open-mobile-menu-btn');
+        const closeMobileMenuBtn = document.getElementById('close-mobile-menu-btn');
+        let mobileMenuOpen = false;
+        
+        function openMobileMenu() {
+            mobileMenuOpen = true;
+            mobileMenuOverlay.style.display = 'block';
+            setTimeout(() => {
+                mobileMenuOverlay.style.opacity = '1';
+            }, 10);
+            mobileSidebar.style.transform = 'translateX(0)';
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeMobileMenu() {
+            mobileMenuOpen = false;
+            mobileMenuOverlay.style.opacity = '0';
+            mobileSidebar.style.transform = 'translateX(-100%)';
+            document.body.style.overflow = '';
+            setTimeout(() => {
+                mobileMenuOverlay.style.display = 'none';
+            }, 300);
+        }
+        
+        openMobileMenuBtn.addEventListener('click', openMobileMenu);
+        closeMobileMenuBtn.addEventListener('click', closeMobileMenu);
+        mobileMenuOverlay.addEventListener('click', closeMobileMenu);
+        
+        // Close mobile menu on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && mobileMenuOpen) {
+                closeMobileMenu();
+            }
+        });
+
         // Search
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
@@ -400,22 +527,41 @@
 
         // SSE for auto-reload when download/translation completes
         let evtSource = null;
+        let sseRetryCount = 0;
+        const SSE_MAX_RETRIES = 5;
+        const SSE_RETRY_DELAY = 5000;
         
         function connectSSE() {
-            if (evtSource) {
-                evtSource.close();
+            try {
+                if (evtSource) {
+                    evtSource.close();
+                }
+                
+                evtSource = new EventSource('/progress');
+                
+                evtSource.onopen = function() {
+                    sseRetryCount = 0; // Reset on successful connection
+                };
+                
+                evtSource.onerror = function(err) {
+                    console.warn('SSE connection error', err);
+                    evtSource.close();
+                    evtSource = null;
+                    
+                    // Limit retries to avoid infinite loop
+                    if (sseRetryCount < SSE_MAX_RETRIES) {
+                        sseRetryCount++;
+                        console.log(`SSE retry ${sseRetryCount}/${SSE_MAX_RETRIES} in ${SSE_RETRY_DELAY/1000}s...`);
+                        setTimeout(connectSSE, SSE_RETRY_DELAY);
+                    } else {
+                        console.warn('SSE max retries reached. Live updates disabled.');
+                    }
+                };
+                
+                evtSource.onmessage = handleSSEMessage;
+            } catch (e) {
+                console.warn('SSE initialization failed:', e);
             }
-            
-            evtSource = new EventSource('/progress');
-            
-            evtSource.onerror = function(err) {
-                console.warn('SSE connection error, will retry...', err);
-                evtSource.close();
-                // Reconnect after 3 seconds
-                setTimeout(connectSSE, 3000);
-            };
-            
-            evtSource.onmessage = handleSSEMessage;
         }
         
         function handleSSEMessage(event) {
@@ -1239,7 +1385,14 @@
         
         pushBannerDismiss.addEventListener('click', dismissPushBanner);
         
+        // Mobile push elements
+        const mobilePushBtn = document.getElementById('mobile-push-btn');
+        const mobilePushIconOff = document.getElementById('mobile-push-icon-off');
+        const mobilePushIconOn = document.getElementById('mobile-push-icon-on');
+        const mobilePushLabel = document.getElementById('mobile-push-label');
+        
         function updatePushUI(isSubscribed) {
+            // Desktop icons
             if (isSubscribed) {
                 pushIconOff.classList.add('hidden');
                 pushIconOn.classList.remove('hidden');
@@ -1250,6 +1403,16 @@
                 pushIconOn.classList.add('hidden');
                 pushBadge.classList.add('hidden');
                 pushBtn.title = 'Activar notificaciones';
+            }
+            // Mobile icons
+            if (isSubscribed) {
+                mobilePushIconOff.classList.add('hidden');
+                mobilePushIconOn.classList.remove('hidden');
+                mobilePushLabel.textContent = 'Notificaciones Activas';
+            } else {
+                mobilePushIconOff.classList.remove('hidden');
+                mobilePushIconOn.classList.add('hidden');
+                mobilePushLabel.textContent = 'Notificaciones Push';
             }
         }
         
@@ -1316,6 +1479,10 @@
         }
         
         pushBtn.addEventListener('click', togglePushNotifications);
+        mobilePushBtn.addEventListener('click', async () => {
+            await togglePushNotifications();
+            // Update mobile UI after toggle
+        });
         
         // Helper function to convert VAPID key
         function urlBase64ToUint8Array(base64String) {
@@ -1333,13 +1500,18 @@
             return outputArray;
         }
 
-        // Theme Toggle
+        // Theme Toggle - Desktop & Mobile
         const themeToggleBtn = document.getElementById('theme-toggle-btn');
         const themeIconDark = document.getElementById('theme-icon-dark');
         const themeIconLight = document.getElementById('theme-icon-light');
+        const mobileThemeToggle = document.getElementById('mobile-theme-toggle');
+        const mobileThemeIconDark = document.getElementById('mobile-theme-icon-dark');
+        const mobileThemeIconLight = document.getElementById('mobile-theme-icon-light');
+        const mobileThemeLabel = document.getElementById('mobile-theme-label');
 
         function updateThemeIcons() {
             const isDark = document.documentElement.classList.contains('dark');
+            // Desktop icons
             if (isDark) {
                 themeIconDark.classList.remove('hidden');
                 themeIconLight.classList.add('hidden');
@@ -1347,25 +1519,69 @@
                 themeIconDark.classList.add('hidden');
                 themeIconLight.classList.remove('hidden');
             }
+            // Mobile icons
+            if (isDark) {
+                mobileThemeIconDark.classList.remove('hidden');
+                mobileThemeIconLight.classList.add('hidden');
+                mobileThemeLabel.textContent = 'Modo Oscuro';
+            } else {
+                mobileThemeIconDark.classList.add('hidden');
+                mobileThemeIconLight.classList.remove('hidden');
+                mobileThemeLabel.textContent = 'Modo Claro';
+            }
         }
 
-        // Initialize icons on load
-        updateThemeIcons();
-
-        // Theme toggle handler function
-        function handleThemeToggle(e) {
-            e.preventDefault();
+        function toggleTheme(e) {
+            if (e) e.stopPropagation();
             const isDark = document.documentElement.classList.toggle('dark');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             updateThemeIcons();
         }
 
-        // Support both click and touch events for mobile compatibility
-        themeToggleBtn.addEventListener('click', handleThemeToggle);
-        themeToggleBtn.addEventListener('touchend', function(e) {
-            e.preventDefault();
-            handleThemeToggle(e);
-        }, { passive: false });
+        // Initialize icons on load
+        updateThemeIcons();
+
+        // Theme toggle - both desktop and mobile buttons
+        themeToggleBtn.addEventListener('click', toggleTheme);
+        mobileThemeToggle.addEventListener('click', toggleTheme);
+        
+        // === Mobile Walk Mode ===
+        const mobileWalkModeBtn = document.getElementById('mobile-walk-mode-btn');
+        mobileWalkModeBtn.addEventListener('click', () => {
+            closeMobileMenu();
+            walkOverlay.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        });
+        
+        // === Mobile Sleep Timer ===
+        const mobileSleepTimerBtn = document.getElementById('mobile-sleep-timer-btn');
+        const mobileTimerBadge = document.getElementById('mobile-timer-badge');
+        
+        mobileSleepTimerBtn.addEventListener('click', () => {
+            closeMobileMenu();
+            sleepTimerModal.classList.remove('hidden');
+            updateTimerModalDisplay();
+        });
+        
+        // Update mobile timer badge when timer is active
+        const originalUpdateTimerDisplay = updateTimerDisplay;
+        updateTimerDisplay = function() {
+            originalUpdateTimerDisplay();
+            if (sleepTimerEndTime) {
+                const remaining = Math.max(0, sleepTimerEndTime - Date.now());
+                const minutes = Math.floor(remaining / 60000);
+                const seconds = Math.floor((remaining % 60000) / 1000);
+                mobileTimerBadge.textContent = minutes > 0 ? `${minutes}m` : `${seconds}s`;
+                mobileTimerBadge.classList.remove('hidden');
+            }
+        };
+        
+        const originalCancelSleepTimer = cancelSleepTimer;
+        cancelSleepTimer = function() {
+            originalCancelSleepTimer();
+            mobileTimerBadge.classList.add('hidden');
+            mobileTimerBadge.textContent = '';
+        };
     </script>
 </body>
 </html>
