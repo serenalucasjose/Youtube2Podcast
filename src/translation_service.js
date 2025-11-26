@@ -3,6 +3,20 @@ const path = require('path');
 const fs = require('fs');
 const db = require('./db');
 const EventEmitter = require('events');
+const webPush = require('web-push');
+
+// Configure web-push (may already be configured in index.js, but safe to set again)
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    try {
+        webPush.setVapidDetails(
+            process.env.VAPID_SUBJECT || 'mailto:admin@youtube2podcast.local',
+            process.env.VAPID_PUBLIC_KEY,
+            process.env.VAPID_PRIVATE_KEY
+        );
+    } catch (e) {
+        // Already configured, ignore
+    }
+}
 
 const translationEmitter = new EventEmitter();
 translationEmitter.setMaxListeners(50);
@@ -77,9 +91,10 @@ function clearLogs(episodeId) {
 /**
  * Inicia el proceso de traducción para un episodio.
  * @param {number} episodeId - ID del episodio en la base de datos.
+ * @param {string} voice - Nombre de la voz de Edge TTS (ej: es-MX-JorgeNeural).
  * @returns {Promise<object>} - Episodio actualizado.
  */
-async function startTranslation(episodeId) {
+async function startTranslation(episodeId, voice = 'es-ES-AlvaroNeural') {
     const episode = db.getEpisodeById(episodeId);
     
     if (!episode) {
@@ -116,7 +131,7 @@ async function startTranslation(episodeId) {
     });
     
     // Iniciar proceso en background
-    performTranslation(episode).catch(err => {
+    performTranslation(episode, voice).catch(err => {
         logError('Error en traducción:', err);
         db.updateTranslationStatusById(episodeId, 'error');
         translationEmitter.emit('progress', {
@@ -139,8 +154,9 @@ async function startTranslation(episodeId) {
 /**
  * Ejecuta el pipeline de traducción (STT -> Traducción -> TTS).
  * @param {object} episode - Objeto del episodio.
+ * @param {string} voice - Nombre de la voz de Edge TTS.
  */
-async function performTranslation(episode) {
+async function performTranslation(episode, voice = 'es-ES-AlvaroNeural') {
     const inputPath = path.join(DOWNLOADS_DIR, episode.file_path);
     const outputFileName = `${episode.youtube_id}_es.wav`;
     const outputPath = path.join(DOWNLOADS_DIR, outputFileName);
@@ -166,7 +182,8 @@ async function performTranslation(episode) {
         const pythonProcess = spawn(pythonPath, [
             scriptPath,
             inputPath,
-            outputPath
+            outputPath,
+            '--voice', voice
         ], {
             cwd: path.join(__dirname, '..'),
             env: {
@@ -245,6 +262,9 @@ async function performTranslation(episode) {
                     
                     logInfo(`Traducción completada: ${outputPath}`);
                     
+                    // Enviar notificación push al usuario
+                    sendPushNotification(episode.user_id, episode.title, true);
+                    
                     // Limpiar logs después de un tiempo (mantener por 5 minutos para consulta)
                     setTimeout(() => clearLogs(episode.id), 5 * 60 * 1000);
                     
@@ -253,6 +273,10 @@ async function performTranslation(episode) {
                     const error = new Error('El archivo de salida no fue generado');
                     addLog(episode.id, 'Error: El archivo de salida no fue generado', 'error');
                     db.updateTranslationStatusById(episode.id, 'error');
+                    
+                    // Enviar notificación push de error
+                    sendPushNotification(episode.user_id, episode.title, false);
+                    
                     reject(error);
                 }
             } else {
@@ -260,6 +284,10 @@ async function performTranslation(episode) {
                 const error = new Error(errorMsg);
                 addLog(episode.id, `Error: ${errorMsg}`, 'error');
                 db.updateTranslationStatusById(episode.id, 'error');
+                
+                // Enviar notificación push de error
+                sendPushNotification(episode.user_id, episode.title, false);
+                
                 reject(error);
             }
         });
@@ -270,6 +298,63 @@ async function performTranslation(episode) {
             reject(err);
         });
     });
+}
+
+/**
+ * Envía notificación push al usuario cuando finaliza la traducción.
+ * @param {number} userId - ID del usuario.
+ * @param {string} title - Título del episodio.
+ * @param {boolean} success - Si la traducción fue exitosa.
+ */
+async function sendPushNotification(userId, title, success) {
+    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+        logInfo('Push notifications not configured, skipping...');
+        return;
+    }
+    
+    try {
+        const subscriptions = db.getPushSubscriptionsByUserId(userId);
+        
+        if (!subscriptions || subscriptions.length === 0) {
+            logInfo(`No push subscriptions for user ${userId}`);
+            return;
+        }
+        
+        const payload = JSON.stringify({
+            title: success ? '¡Traducción lista!' : 'Error en traducción',
+            body: success 
+                ? `"${title}" está listo para escuchar en español` 
+                : `Error al traducir "${title}"`,
+            icon: '/icons/logo.png',
+            tag: 'translation-complete',
+            url: '/'
+        });
+        
+        for (const sub of subscriptions) {
+            const pushSubscription = {
+                endpoint: sub.endpoint,
+                keys: {
+                    auth: sub.keys_auth,
+                    p256dh: sub.keys_p256dh
+                }
+            };
+            
+            try {
+                await webPush.sendNotification(pushSubscription, payload);
+                logInfo(`Push notification sent to user ${userId}`);
+            } catch (err) {
+                if (err.statusCode === 410 || err.statusCode === 404) {
+                    // Subscription expired or invalid, remove it
+                    db.deletePushSubscription(sub.endpoint);
+                    logInfo(`Removed expired subscription for user ${userId}`);
+                } else {
+                    logError(`Error sending push notification:`, err);
+                }
+            }
+        }
+    } catch (err) {
+        logError('Error in sendPushNotification:', err);
+    }
 }
 
 /**

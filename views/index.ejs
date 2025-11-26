@@ -21,6 +21,17 @@
                     <span class="text-xs bg-gray-700 px-2 py-1 rounded text-gray-300">v1.3</span>
                 </div>
                 <div class="flex items-center gap-4">
+                    <!-- Push Notifications Toggle -->
+                    <button id="push-notifications-btn" title="Notificaciones Push" class="text-gray-300 hover:text-white relative">
+                        <svg id="push-icon-off" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                        </svg>
+                        <svg id="push-icon-on" class="w-6 h-6 hidden text-green-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"></path>
+                        </svg>
+                        <span id="push-badge" class="hidden absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></span>
+                    </button>
+                    
                     <button id="walk-mode-btn" title="Activar Modo Caminata" class="text-gray-300 hover:text-white">
                         <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQc6rEM9CAB3FlBxasuUJJKgK3N59DTlJ9Xcgi-MlQlEmg6u0Hc2rRXuNRcOd3mJKHU4Wg&usqp=CAU" alt="Modo Caminata" class="w-6 h-6 rounded-full object-cover">
                     </button>
@@ -99,6 +110,91 @@
     <footer class="bg-gray-800 text-gray-500 py-6 mt-12 text-center text-sm">
         <p>Youtube2Podcast v1.3 | <a href="/logout" class="hover:text-gray-300">Salir</a></p>
     </footer>
+
+    <!-- Voice Selection Modal -->
+    <div id="voice-modal" class="fixed inset-0 bg-black bg-opacity-80 z-[9998] hidden flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden border border-gray-700">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-white">Seleccionar Voz</h3>
+                <button onclick="closeVoiceModal()" class="text-gray-400 hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4 overflow-y-auto max-h-[60vh]">
+                <input type="hidden" id="voice-episode-id" value="">
+                
+                <!-- España -->
+                <div class="mb-4">
+                    <h4 class="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                        <span>🇪🇸</span> España
+                    </h4>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="selectVoice('es-ES-AlvaroNeural')" class="voice-option" data-voice="es-ES-AlvaroNeural">
+                            <span class="voice-gender">♂</span> Álvaro
+                        </button>
+                        <button type="button" onclick="selectVoice('es-ES-ElviraNeural')" class="voice-option" data-voice="es-ES-ElviraNeural">
+                            <span class="voice-gender female">♀</span> Elvira
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- México -->
+                <div class="mb-4">
+                    <h4 class="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                        <span>🇲🇽</span> México
+                    </h4>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="selectVoice('es-MX-JorgeNeural')" class="voice-option" data-voice="es-MX-JorgeNeural">
+                            <span class="voice-gender">♂</span> Jorge
+                        </button>
+                        <button type="button" onclick="selectVoice('es-MX-DaliaNeural')" class="voice-option" data-voice="es-MX-DaliaNeural">
+                            <span class="voice-gender female">♀</span> Dalia
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Argentina -->
+                <div class="mb-4">
+                    <h4 class="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                        <span>🇦🇷</span> Argentina
+                    </h4>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="selectVoice('es-AR-TomasNeural')" class="voice-option" data-voice="es-AR-TomasNeural">
+                            <span class="voice-gender">♂</span> Tomás
+                        </button>
+                        <button type="button" onclick="selectVoice('es-AR-ElenaNeural')" class="voice-option" data-voice="es-AR-ElenaNeural">
+                            <span class="voice-gender female">♀</span> Elena
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Colombia -->
+                <div class="mb-4">
+                    <h4 class="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                        <span>🇨🇴</span> Colombia
+                    </h4>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="selectVoice('es-CO-GonzaloNeural')" class="voice-option" data-voice="es-CO-GonzaloNeural">
+                            <span class="voice-gender">♂</span> Gonzalo
+                        </button>
+                        <button type="button" onclick="selectVoice('es-CO-SalomeNeural')" class="voice-option" data-voice="es-CO-SalomeNeural">
+                            <span class="voice-gender female">♀</span> Salomé
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-700 flex justify-end gap-3">
+                <button onclick="closeVoiceModal()" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition">
+                    Cancelar
+                </button>
+                <button id="start-translation-btn" onclick="confirmVoiceSelection()" class="px-4 py-2 text-sm bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg transition font-medium">
+                    Iniciar Traducción
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Walk Mode Overlay -->
     <div id="walk-overlay" class="fixed inset-0 bg-black bg-opacity-90 z-[9999] hidden flex flex-col items-center justify-center text-center touch-none select-none p-4">
@@ -253,12 +349,55 @@
             }
         }
 
+        // Voice Selection Modal
+        let selectedVoice = 'es-ES-AlvaroNeural';
+        const voiceModal = document.getElementById('voice-modal');
+        const voiceEpisodeIdInput = document.getElementById('voice-episode-id');
+        
+        function openVoiceModal(episodeId) {
+            voiceEpisodeIdInput.value = episodeId;
+            selectedVoice = 'es-ES-AlvaroNeural'; // Reset to default
+            // Reset visual selection
+            document.querySelectorAll('.voice-option').forEach(btn => btn.classList.remove('selected'));
+            document.querySelector('.voice-option[data-voice="es-ES-AlvaroNeural"]').classList.add('selected');
+            voiceModal.classList.remove('hidden');
+        }
+        
+        function closeVoiceModal() {
+            voiceModal.classList.add('hidden');
+        }
+        
+        function selectVoice(voice) {
+            selectedVoice = voice;
+            document.querySelectorAll('.voice-option').forEach(btn => btn.classList.remove('selected'));
+            document.querySelector(`.voice-option[data-voice="${voice}"]`).classList.add('selected');
+        }
+        
+        function confirmVoiceSelection() {
+            const episodeId = voiceEpisodeIdInput.value;
+            closeVoiceModal();
+            startTranslation(episodeId, selectedVoice);
+        }
+        
+        // Close modal on backdrop click
+        voiceModal.addEventListener('click', (e) => {
+            if (e.target === voiceModal) closeVoiceModal();
+        });
+        
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !voiceModal.classList.contains('hidden')) {
+                closeVoiceModal();
+            }
+        });
+
         // Translation Functions
-        async function startTranslation(episodeId) {
+        async function startTranslation(episodeId, voice = 'es-ES-AlvaroNeural') {
             try {
                 const response = await fetch(`/translate/${episodeId}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voice })
                 });
                 
                 const data = await response.json();
@@ -614,11 +753,124 @@
 
         initAudioPlayers();
 
-        // Register Service Worker
+        // Register Service Worker and Push Notifications
+        let swRegistration = null;
+        
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js')
-                .then(reg => console.log('Service Worker registrado:', reg.scope))
+                .then(reg => {
+                    console.log('Service Worker registrado:', reg.scope);
+                    swRegistration = reg;
+                    // Check push subscription status
+                    checkPushSubscription();
+                })
                 .catch(err => console.warn('Service Worker error:', err));
+        }
+        
+        // Push Notifications
+        const pushBtn = document.getElementById('push-notifications-btn');
+        const pushIconOff = document.getElementById('push-icon-off');
+        const pushIconOn = document.getElementById('push-icon-on');
+        const pushBadge = document.getElementById('push-badge');
+        
+        async function checkPushSubscription() {
+            if (!('PushManager' in window) || !swRegistration) {
+                pushBtn.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const subscription = await swRegistration.pushManager.getSubscription();
+                updatePushUI(!!subscription);
+            } catch (err) {
+                console.warn('Error checking push subscription:', err);
+            }
+        }
+        
+        function updatePushUI(isSubscribed) {
+            if (isSubscribed) {
+                pushIconOff.classList.add('hidden');
+                pushIconOn.classList.remove('hidden');
+                pushBadge.classList.remove('hidden');
+                pushBtn.title = 'Notificaciones activadas';
+            } else {
+                pushIconOff.classList.remove('hidden');
+                pushIconOn.classList.add('hidden');
+                pushBadge.classList.add('hidden');
+                pushBtn.title = 'Activar notificaciones';
+            }
+        }
+        
+        pushBtn.addEventListener('click', async () => {
+            if (!('PushManager' in window)) {
+                alert('Tu navegador no soporta notificaciones push');
+                return;
+            }
+            
+            if (!swRegistration) {
+                alert('Service Worker no disponible');
+                return;
+            }
+            
+            try {
+                const subscription = await swRegistration.pushManager.getSubscription();
+                
+                if (subscription) {
+                    // Unsubscribe
+                    await subscription.unsubscribe();
+                    await fetch('/api/push/unsubscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ endpoint: subscription.endpoint })
+                    });
+                    updatePushUI(false);
+                } else {
+                    // Subscribe
+                    const permission = await Notification.requestPermission();
+                    if (permission !== 'granted') {
+                        alert('Permiso de notificaciones denegado');
+                        return;
+                    }
+                    
+                    // Get VAPID public key
+                    const keyResponse = await fetch('/api/vapid-public-key');
+                    const { publicKey } = await keyResponse.json();
+                    
+                    // Subscribe to push
+                    const newSubscription = await swRegistration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(publicKey)
+                    });
+                    
+                    // Send subscription to server
+                    await fetch('/api/push/subscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newSubscription.toJSON())
+                    });
+                    
+                    updatePushUI(true);
+                }
+            } catch (err) {
+                console.error('Push subscription error:', err);
+                alert('Error al configurar notificaciones: ' + err.message);
+            }
+        });
+        
+        // Helper function to convert VAPID key
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+            
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
         }
     </script>
 </body>

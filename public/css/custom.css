@@ -746,3 +746,43 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
     opacity: 1;
     color: #e5e7eb;
 }
+
+/* === VOICE SELECTION MODAL === */
+.z-\[9998\] { z-index: 9998 !important; }
+
+.voice-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: #374151;
+    border: 2px solid #4b5563;
+    border-radius: 0.5rem;
+    color: #e5e7eb;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    text-align: left;
+}
+
+.voice-option:hover {
+    background: #4b5563;
+    border-color: #6b7280;
+}
+
+.voice-option.selected {
+    background: #1e40af;
+    border-color: #3b82f6;
+    color: #fff;
+}
+
+.voice-gender {
+    font-size: 1rem;
+    color: #60a5fa;
+}
+
+.voice-gender.female {
+    color: #f472b6;
+}

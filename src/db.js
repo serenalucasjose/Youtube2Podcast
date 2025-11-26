@@ -51,6 +51,18 @@ if (!columnNames.includes('translated_file_path')) {
     db.exec("ALTER TABLE episodes ADD COLUMN translated_file_path TEXT");
 }
 
+// Create push subscriptions table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL UNIQUE,
+    keys_auth TEXT NOT NULL,
+    keys_p256dh TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // Seed Users
 const seedUsers = () => {
     const usersToCreate = [
@@ -189,5 +201,25 @@ module.exports = {
       } else {
           return db.prepare('UPDATE episodes SET translation_status = ? WHERE id = ?').run(status, id);
       }
+  },
+
+  // Push Subscription Management
+  savePushSubscription: (userId, subscription) => {
+      const { endpoint, keys } = subscription;
+      try {
+          return db.prepare(`
+              INSERT OR REPLACE INTO push_subscriptions (user_id, endpoint, keys_auth, keys_p256dh)
+              VALUES (?, ?, ?, ?)
+          `).run(userId, endpoint, keys.auth, keys.p256dh);
+      } catch (err) {
+          console.error('Error saving push subscription:', err);
+          throw err;
+      }
+  },
+  getPushSubscriptionsByUserId: (userId) => {
+      return db.prepare('SELECT * FROM push_subscriptions WHERE user_id = ?').all(userId);
+  },
+  deletePushSubscription: (endpoint) => {
+      return db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(endpoint);
   }
 };

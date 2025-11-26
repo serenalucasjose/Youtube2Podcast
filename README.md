@@ -5,7 +5,8 @@ Esta aplicación permite descargar audios de YouTube, convertirlos a MP3 con car
 ## Características
 
 *   **Descarga y Conversión Eficiente**: Convierte videos de YouTube a **MP3** incrustando el thumbnail original como carátula. Esto reduce drásticamente el espacio ocupado en comparación con videos.
-*   **Traducción al Español**: Pipeline STT → Traducción → TTS para convertir podcasts en inglés a español (procesamiento local, sin APIs externas).
+*   **Traducción al Español**: Pipeline STT → Traducción → TTS para convertir podcasts en inglés a español (procesamiento local, sin APIs externas). **Ahora con selección de voz** (España, México, Argentina, Colombia).
+*   **Notificaciones Push**: Recibe alertas cuando las traducciones terminan, incluso si cierras el navegador.
 *   **Gestión de Usuarios**: Sistema de login y aislamiento de contenido por usuario.
 *   **Gestión de Episodios**: Los usuarios pueden agregar y **eliminar** sus propios episodios (uno a uno o selección múltiple).
 *   **Reproductor Nativo**: Opción para abrir los archivos directamente en el reproductor de audio nativo de tu dispositivo (ideal para móviles).
@@ -85,15 +86,46 @@ sudo dphys-swapfile setup
 sudo dphys-swapfile swapon
 ```
 
-### Variables de entorno opcionales
+### Variables de entorno
 
-Crear un archivo `.env`:
+Crear un archivo `.env` (puedes copiar `.env.example` como base):
 
 ```env
 PORT=3000
 SESSION_SECRET=tu_secreto_seguro
 ENABLE_LOGS=true
+
+# Push Notifications (opcional pero recomendado)
+VAPID_PUBLIC_KEY=tu_clave_publica
+VAPID_PRIVATE_KEY=tu_clave_privada
+VAPID_SUBJECT=mailto:tu-email@ejemplo.com
 ```
+
+#### Configurar Notificaciones Push
+
+Las notificaciones push permiten recibir alertas cuando las traducciones terminan, incluso si cierras la pestaña del navegador.
+
+1. **Generar claves VAPID** (solo una vez):
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+2. **Copiar las claves al archivo `.env`**:
+
+```env
+VAPID_PUBLIC_KEY=BKx-0AmSLXWHejj4WzNFXQk7KP9NpdKHoDdGWFDNk7HIjrSVOPfkGvQeKBMF3miZeAq3F_C-WbuBEDTvIw4oRuk
+VAPID_PRIVATE_KEY=b9q1U6CSctYTJes3jtkurGwqCOUxgr1C-sstohXKIRo
+VAPID_SUBJECT=mailto:admin@tudominio.com
+```
+
+3. **Activar en la aplicación**:
+   - Inicia sesión en la aplicación
+   - Haz clic en el icono de campana (🔔) en la barra de navegación
+   - Acepta el permiso de notificaciones del navegador
+   - El icono se pondrá verde cuando las notificaciones estén activas
+
+> **Nota**: Las notificaciones push requieren HTTPS en producción (excepto en `localhost`). En una Raspberry Pi local, funcionan correctamente con HTTP en la red local.
 
 ## Ejecución
 
@@ -114,10 +146,12 @@ La aplicación estará disponible en `http://localhost:3000` (o la IP de tu Rasp
     - Usa el reproductor web integrado.
     - O haz clic en **"Abrir"** para usar tu app de música favorita.
     - O haz clic en **"Descargar"** para guardar el archivo.
-5. **Traducir al Español** (nuevo):
+5. **Traducir al Español**:
     - Una vez que el episodio esté listo, haz clic en el icono de **traducción** (🌐).
+    - **Selecciona la voz** que prefieras (España, México, Argentina o Colombia, masculina o femenina).
     - El proceso de traducción se ejecuta en segundo plano (STT → Traducción → TTS).
     - Cuando termine, aparecerá un nuevo botón para **descargar la versión en español**.
+    - Si tienes las **notificaciones push activadas**, recibirás una alerta cuando termine.
 6. **Gestión**: Selecciona episodios con el checkbox para borrarlos en lote, o usa el icono de papelera en cada tarjeta.
 7. **Modo Caminata**: Actívalo desde el menú superior para bloquear la pantalla. Mantén presionado el círculo central para desbloquear.
 

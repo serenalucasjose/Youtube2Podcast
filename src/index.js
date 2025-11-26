@@ -5,9 +5,19 @@ const fs = require('fs');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const bcrypt = require('bcryptjs');
+const webPush = require('web-push');
 const db = require('./db');
 const downloader = require('./downloader');
 const translationService = require('./translation_service');
+
+// Configure web-push with VAPID keys
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webPush.setVapidDetails(
+        process.env.VAPID_SUBJECT || 'mailto:admin@youtube2podcast.local',
+        process.env.VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -291,8 +301,11 @@ app.post('/translate/:id', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'El video aún no está listo' });
     }
 
+    // Obtener voz seleccionada (default: es-ES-AlvaroNeural)
+    const voice = req.body.voice || 'es-ES-AlvaroNeural';
+
     try {
-        const updatedEpisode = await translationService.startTranslation(episode.id);
+        const updatedEpisode = await translationService.startTranslation(episode.id, voice);
         res.json({ 
             success: true, 
             message: 'Traducción iniciada',
@@ -444,6 +457,50 @@ app.get('/api/episode/:id/logs', requireAuth, (req, res) => {
         status: episode.translation_status,
         episodeId: episode.id
     });
+});
+
+// --- Push Notifications API ---
+
+// Get VAPID public key
+app.get('/api/vapid-public-key', requireAuth, (req, res) => {
+    if (!process.env.VAPID_PUBLIC_KEY) {
+        return res.status(500).json({ error: 'Push notifications not configured' });
+    }
+    res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+});
+
+// Subscribe to push notifications
+app.post('/api/push/subscribe', requireAuth, (req, res) => {
+    const subscription = req.body;
+    
+    if (!subscription || !subscription.endpoint || !subscription.keys) {
+        return res.status(400).json({ error: 'Invalid subscription' });
+    }
+    
+    try {
+        db.savePushSubscription(req.session.userId, subscription);
+        res.json({ success: true, message: 'Subscripción guardada' });
+    } catch (error) {
+        console.error('Error saving push subscription:', error);
+        res.status(500).json({ error: 'Error al guardar suscripción' });
+    }
+});
+
+// Unsubscribe from push notifications
+app.post('/api/push/unsubscribe', requireAuth, (req, res) => {
+    const { endpoint } = req.body;
+    
+    if (!endpoint) {
+        return res.status(400).json({ error: 'Endpoint required' });
+    }
+    
+    try {
+        db.deletePushSubscription(endpoint);
+        res.json({ success: true, message: 'Suscripción eliminada' });
+    } catch (error) {
+        console.error('Error deleting push subscription:', error);
+        res.status(500).json({ error: 'Error al eliminar suscripción' });
+    }
 });
 
 // Admin: Clear All Episodes

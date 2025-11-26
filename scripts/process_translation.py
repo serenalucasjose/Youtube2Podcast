@@ -124,7 +124,7 @@ def translate_text(text_en: str) -> str:
     
     return text_es
 
-async def synthesize_speech_async(text_es: str, output_path: str) -> None:
+async def synthesize_speech_async(text_es: str, output_path: str, voice: str = "es-ES-AlvaroNeural") -> None:
     """
     Etapa 3: Text-to-Speech usando edge-tts (Microsoft Edge TTS).
     Genera audio en español a partir del texto traducido.
@@ -132,10 +132,6 @@ async def synthesize_speech_async(text_es: str, output_path: str) -> None:
     log_progress("tts", 70, "Iniciando síntesis de voz...")
     
     import edge_tts
-    
-    # Usar voz en español de España (es-ES) o México (es-MX)
-    # Opciones disponibles: es-ES-AlvaroNeural, es-ES-ElviraNeural, es-MX-DaliaNeural, es-MX-JorgeNeural
-    voice = "es-ES-AlvaroNeural"
     
     log_progress("tts", 75, f"Generando audio con voz {voice}...")
     
@@ -162,9 +158,9 @@ async def synthesize_speech_async(text_es: str, output_path: str) -> None:
     
     log_progress("tts", 98, "Audio generado correctamente")
 
-def synthesize_speech(text_es: str, output_path: str) -> None:
+def synthesize_speech(text_es: str, output_path: str, voice: str = "es-ES-AlvaroNeural") -> None:
     """Wrapper síncrono para la función async de TTS."""
-    asyncio.run(synthesize_speech_async(text_es, output_path))
+    asyncio.run(synthesize_speech_async(text_es, output_path, voice))
 
 def main():
     parser = argparse.ArgumentParser(
@@ -172,6 +168,8 @@ def main():
     )
     parser.add_argument("input_audio", help="Ruta al archivo de audio de entrada (MP3/WAV)")
     parser.add_argument("output_audio", help="Ruta al archivo de audio de salida (WAV)")
+    parser.add_argument("--voice", default="es-ES-AlvaroNeural", 
+                        help="Voz de Edge TTS a usar (ej: es-MX-JorgeNeural)")
     
     args = parser.parse_args()
     
@@ -201,7 +199,7 @@ def main():
             sys.exit(1)
         
         # Etapa 3: TTS
-        synthesize_speech(text_es, output_path)
+        synthesize_speech(text_es, output_path, args.voice)
         
         # Verificar salida
         if not os.path.exists(output_path):

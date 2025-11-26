@@ -51,3 +51,55 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// Push Notifications
+self.addEventListener('push', (event) => {
+  let data = { title: 'Youtube2Podcast', body: 'Notificación', icon: '/icons/logo.png' };
+  
+  try {
+    if (event.data) {
+      data = event.data.json();
+    }
+  } catch (e) {
+    console.error('Error parsing push data:', e);
+  }
+  
+  const options = {
+    body: data.body || 'Tu traducción está lista',
+    icon: data.icon || '/icons/logo.png',
+    badge: '/icons/logo.png',
+    vibrate: [200, 100, 200],
+    tag: data.tag || 'translation-notification',
+    renotify: true,
+    data: {
+      url: data.url || '/'
+    }
+  };
+  
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Youtube2Podcast', options)
+  );
+});
+
+// Notification click handler
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  
+  const urlToOpen = event.notification.data?.url || '/';
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      // Check if there's already a window open
+      for (const client of windowClients) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(urlToOpen);
+          return client.focus();
+        }
+      }
+      // If no window is open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});
+
