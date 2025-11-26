@@ -11,6 +11,8 @@ const db = require('./db');
 const downloader = require('./downloader');
 const translationService = require('./translation_service');
 const transcriptionService = require('./transcription_service');
+const packageJson = require('../package.json');
+
 
 // Configure web-push with VAPID keys
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -22,6 +24,10 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 }
 
 const app = express();
+
+// Make version available to all views
+app.locals.appVersion = packageJson.version;
+
 const PORT = process.env.PORT || 3000;
 
 // Trust proxy when behind reverse proxy (Nginx, Cloudflare, etc.)
