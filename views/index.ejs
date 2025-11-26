@@ -72,6 +72,27 @@
         </div>
     </nav>
 
+    <!-- Push Notifications Banner -->
+    <div id="push-banner" class="hidden bg-gradient-to-r from-blue-600/90 to-indigo-600/90 text-white py-3 px-4 shadow-md">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3 text-sm">
+                <i class="bi bi-lightbulb text-yellow-300 text-lg flex-shrink-0"></i>
+                <span>
+                    <strong>Tip:</strong> Activa las notificaciones para recibir avisos cuando tus descargas terminen. 
+                    Así podrás dejar la aplicación trabajando en segundo plano.
+                </span>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button id="push-banner-activate" class="bg-white text-blue-700 hover:bg-blue-50 font-medium text-sm px-4 py-1.5 rounded-lg transition shadow-sm">
+                    <i class="bi bi-bell me-1"></i> Activar
+                </button>
+                <button id="push-banner-dismiss" class="text-white/80 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition" title="No gracias">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <main class="flex-grow container mx-auto px-4 py-8" id="main-content">
         
         <% if (typeof error !== 'undefined' && error) { %>
@@ -1137,10 +1158,55 @@
             try {
                 const subscription = await swRegistration.pushManager.getSubscription();
                 updatePushUI(!!subscription);
+                // Verificar si debemos mostrar el banner educativo
+                checkAndShowPushBanner(!!subscription);
             } catch (err) {
                 console.warn('Error checking push subscription:', err);
             }
         }
+        
+        // Push Banner Logic
+        const pushBanner = document.getElementById('push-banner');
+        const pushBannerActivate = document.getElementById('push-banner-activate');
+        const pushBannerDismiss = document.getElementById('push-banner-dismiss');
+        const PUSH_BANNER_DISMISSED_KEY = 'y2p_push_banner_dismissed';
+        
+        function checkAndShowPushBanner(isSubscribed) {
+            // No mostrar si ya está suscrito
+            if (isSubscribed) {
+                hidePushBanner();
+                return;
+            }
+            
+            // No mostrar si el usuario ya lo descartó
+            if (localStorage.getItem(PUSH_BANNER_DISMISSED_KEY) === 'true') {
+                return;
+            }
+            
+            // No mostrar si el permiso ya fue denegado
+            if ('Notification' in window && Notification.permission === 'denied') {
+                return;
+            }
+            
+            // Mostrar el banner
+            pushBanner.classList.remove('hidden');
+        }
+        
+        function hidePushBanner() {
+            pushBanner.classList.add('hidden');
+        }
+        
+        function dismissPushBanner() {
+            localStorage.setItem(PUSH_BANNER_DISMISSED_KEY, 'true');
+            hidePushBanner();
+        }
+        
+        // Event listeners del banner
+        pushBannerActivate.addEventListener('click', async () => {
+            await togglePushNotifications();
+        });
+        
+        pushBannerDismiss.addEventListener('click', dismissPushBanner);
         
         function updatePushUI(isSubscribed) {
             if (isSubscribed) {
@@ -1156,15 +1222,16 @@
             }
         }
         
-        pushBtn.addEventListener('click', async () => {
+        // Función reutilizable para toggle de notificaciones push
+        async function togglePushNotifications() {
             if (!('PushManager' in window)) {
                 alert('Tu navegador no soporta notificaciones push');
-                return;
+                return false;
             }
             
             if (!swRegistration) {
                 alert('Service Worker no disponible');
-                return;
+                return false;
             }
             
             try {
@@ -1179,12 +1246,13 @@
                         body: JSON.stringify({ endpoint: subscription.endpoint })
                     });
                     updatePushUI(false);
+                    return false;
                 } else {
                     // Subscribe
                     const permission = await Notification.requestPermission();
                     if (permission !== 'granted') {
                         alert('Permiso de notificaciones denegado');
-                        return;
+                        return false;
                     }
                     
                     // Get VAPID public key
@@ -1205,12 +1273,18 @@
                     });
                     
                     updatePushUI(true);
+                    // Ocultar banner si está visible
+                    hidePushBanner();
+                    return true;
                 }
             } catch (err) {
                 console.error('Push subscription error:', err);
                 alert('Error al configurar notificaciones: ' + err.message);
+                return false;
             }
-        });
+        }
+        
+        pushBtn.addEventListener('click', togglePushNotifications);
         
         // Helper function to convert VAPID key
         function urlBase64ToUint8Array(base64String) {
