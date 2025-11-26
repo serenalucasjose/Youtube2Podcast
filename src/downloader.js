@@ -12,6 +12,7 @@ if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR);
 
 const EventEmitter = require('events');
 const progressEmitter = new EventEmitter();
+progressEmitter.setMaxListeners(50);
 
 // Configuration
 const MAX_RETRIES = 1;

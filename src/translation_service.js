@@ -5,6 +5,7 @@ const db = require('./db');
 const EventEmitter = require('events');
 
 const translationEmitter = new EventEmitter();
+translationEmitter.setMaxListeners(50);
 
 const DOWNLOADS_DIR = path.join(__dirname, '../downloads');
 const SCRIPTS_DIR = path.join(__dirname, '../scripts');

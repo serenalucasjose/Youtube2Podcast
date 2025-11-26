@@ -88,21 +88,70 @@ app.get('/progress', requireAuth, (req, res) => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
+    let isAlive = true;
+    let heartbeatInterval = null;
+
+    const cleanup = () => {
+        if (!isAlive) return; // Already cleaned up
+        isAlive = false;
+        
+        // Clear heartbeat first
+        if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+        }
+        
+        // Remove listeners - wrapped in try/catch for safety
+        try {
+            downloader.progressEmitter.removeListener('progress', onProgress);
+        } catch (e) { /* ignore */ }
+        
+        try {
+            translationService.translationEmitter.removeListener('progress', onTranslationProgress);
+        } catch (e) { /* ignore */ }
+    };
+
     const onProgress = (data) => {
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
+        if (!isAlive) return;
+        try {
+            res.write(`data: ${JSON.stringify(data)}\n\n`);
+        } catch (err) {
+            cleanup();
+        }
     };
 
     const onTranslationProgress = (data) => {
-        res.write(`data: ${JSON.stringify({ ...data, type: 'translation' })}\n\n`);
+        if (!isAlive) return;
+        try {
+            res.write(`data: ${JSON.stringify({ ...data, type: 'translation' })}\n\n`);
+        } catch (err) {
+            cleanup();
+        }
     };
 
+    // Register cleanup handlers BEFORE adding listeners
+    req.on('close', cleanup);
+    req.on('error', cleanup);
+    res.on('error', cleanup);
+    res.on('close', cleanup);
+
+    // Heartbeat every 30 seconds to detect dead connections
+    heartbeatInterval = setInterval(() => {
+        if (!isAlive) {
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+            return;
+        }
+        try {
+            res.write(': heartbeat\n\n');
+        } catch (err) {
+            cleanup();
+        }
+    }, 30000);
+
+    // Add listeners AFTER registering cleanup
     downloader.progressEmitter.on('progress', onProgress);
     translationService.translationEmitter.on('progress', onTranslationProgress);
-
-    req.on('close', () => {
-        downloader.progressEmitter.off('progress', onProgress);
-        translationService.translationEmitter.off('progress', onTranslationProgress);
-    });
 });
 
 // Home: List episodes
