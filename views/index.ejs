@@ -288,8 +288,8 @@
     </div>
 
     <!-- Sleep Timer Modal -->
-    <div id="sleep-timer-modal" class="fixed inset-0 bg-black bg-opacity-80 z-[9998] hidden flex items-center justify-center p-6">
-        <div class="bg-gray-800 rounded-xl shadow-2xl max-w-sm w-full overflow-hidden border border-gray-700">
+    <div id="sleep-timer-modal" class="fixed inset-0 bg-black bg-opacity-80 z-[9998] hidden flex items-center justify-center px-4 py-6 sm:p-6">
+        <div class="bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-700">
             <div class="p-6 border-b border-gray-700 flex justify-between items-center">
                 <h3 class="text-xl font-semibold text-white"><i class="bi bi-stopwatch me-2"></i>Temporizador</h3>
                 <button onclick="closeSleepTimerModal()" class="text-gray-400 hover:text-white">
@@ -1352,11 +1352,20 @@
         // Initialize icons on load
         updateThemeIcons();
 
-        themeToggleBtn.addEventListener('click', () => {
+        // Theme toggle handler function
+        function handleThemeToggle(e) {
+            e.preventDefault();
             const isDark = document.documentElement.classList.toggle('dark');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             updateThemeIcons();
-        });
+        }
+
+        // Support both click and touch events for mobile compatibility
+        themeToggleBtn.addEventListener('click', handleThemeToggle);
+        themeToggleBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            handleThemeToggle(e);
+        }, { passive: false });
     </script>
 </body>
 </html>
