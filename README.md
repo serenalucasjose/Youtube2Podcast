@@ -1,18 +1,22 @@
 # Youtube2Podcast (Raspberry Pi Edition)
 
-Esta aplicación permite descargar audios de YouTube, convertirlos a MP3 con carátula (album art) y servirlos localmente para ser consumidos como un podcast personal. Incluye un pipeline de traducción automática (inglés → español) usando modelos de IA locales.
+Esta aplicación permite descargar audios de YouTube, convertirlos a MP3 con carátula (album art) y servirlos localmente para ser consumidos como un podcast personal. Incluye pipelines de traducción automática (doblaje) y transcripción usando modelos de IA locales.
 
 ## Características
 
 *   **Descarga y Conversión Eficiente**: Convierte videos de YouTube a **MP3** incrustando el thumbnail original como carátula. Esto reduce drásticamente el espacio ocupado en comparación con videos.
-*   **Traducción al Español**: Pipeline STT → Traducción → TTS para convertir podcasts en inglés a español (procesamiento local, sin APIs externas). **Ahora con selección de voz** (España, México, Argentina, Colombia).
-*   **Notificaciones Push**: Recibe alertas cuando las traducciones terminan, incluso si cierras el navegador.
+*   **Doblaje al Español**: Pipeline STT → Traducción → TTS para convertir podcasts en inglés a español (procesamiento local, sin APIs externas). **Ahora con selección de voz** (España, México, Argentina, Colombia).
+*   **Transcripción a PDF**: Genera transcripciones con timestamps en formato PDF. Soporta múltiples idiomas (inglés, español, francés, alemán, italiano, portugués, y más).
+*   **Notificaciones Push**: Recibe alertas cuando las descargas, doblajes o transcripciones terminan, incluso si cierras el navegador.
+*   **Temporizador de Sueño (Sleep Timer)**: Programa la detención automática de la reproducción después de 15, 30, 45 o 60 minutos.
 *   **Gestión de Usuarios**: Sistema de login y aislamiento de contenido por usuario.
 *   **Gestión de Episodios**: Los usuarios pueden agregar y **eliminar** sus propios episodios (uno a uno o selección múltiple).
 *   **Reproductor Nativo**: Opción para abrir los archivos directamente en el reproductor de audio nativo de tu dispositivo (ideal para móviles).
 *   **Modo Caminata**: Bloqueo de pantalla para evitar toques accidentales mientras escuchas en movimiento.
 *   **Carga Optimista**: Visualiza el episodio inmediatamente mientras se procesa en segundo plano.
-*   **Panel de Administración**: Gestión de usuarios y limpieza general de datos.
+*   **Panel de Administración**: Gestión de usuarios, visualización de todos los podcasts y limpieza general de datos.
+*   **Modo Oscuro/Claro**: Cambia entre tema oscuro y claro según tu preferencia, con persistencia en el navegador.
+*   **Iconografía Bootstrap Icons**: Interfaz consistente con iconos modernos de Bootstrap Icons.
 
 ## Requisitos
 
@@ -55,9 +59,10 @@ python scripts/download_models.py
 Los modelos descargados son:
 | Modelo | Tamaño | Función |
 |--------|--------|---------|
-| `faster-whisper` (tiny) | ~75 MB | Speech-to-Text (inglés) |
+| `faster-whisper` (tiny) | ~75 MB | Speech-to-Text (multiidioma) |
 | `Helsinki-NLP/opus-mt-en-es` | ~200 MB | Traducción EN→ES |
 | `edge-tts` | N/A (online) | Text-to-Speech (español, usa Microsoft Edge) |
+| `fpdf2` | N/A (librería) | Generación de PDFs para transcripciones |
 
 > **Nota**: `edge-tts` requiere conexión a internet ya que usa los servicios de Microsoft Edge TTS.
 
@@ -146,24 +151,44 @@ La aplicación estará disponible en `http://localhost:3000` (o la IP de tu Rasp
     - Usa el reproductor web integrado.
     - O haz clic en **"Abrir"** para usar tu app de música favorita.
     - O haz clic en **"Descargar"** para guardar el archivo.
-5. **Traducir al Español**:
+5. **Doblar al Español**:
     - Una vez que el episodio esté listo, haz clic en el icono de **traducción** (🌐).
     - **Selecciona la voz** que prefieras (España, México, Argentina o Colombia, masculina o femenina).
-    - El proceso de traducción se ejecuta en segundo plano (STT → Traducción → TTS).
+    - El proceso de doblaje se ejecuta en segundo plano (STT → Traducción → TTS).
     - Cuando termine, aparecerá un nuevo botón para **descargar la versión en español**.
     - Si tienes las **notificaciones push activadas**, recibirás una alerta cuando termine.
-6. **Gestión**: Selecciona episodios con el checkbox para borrarlos en lote, o usa el icono de papelera en cada tarjeta.
-7. **Modo Caminata**: Actívalo desde el menú superior para bloquear la pantalla. Mantén presionado el círculo central para desbloquear.
+6. **Obtener Transcripción**:
+    - Haz clic en el icono de **documento** (📄) en cualquier episodio listo.
+    - **Selecciona el idioma** del audio original para mejor precisión.
+    - La transcripción se genera como **PDF con timestamps**.
+    - Cuando termine, podrás descargar el PDF haciendo clic en el icono morado.
+7. **Temporizador de Sueño**:
+    - Haz clic en el icono de **cronómetro** (⏱️) en la barra superior.
+    - Selecciona la duración: 15, 30, 45 o 60 minutos.
+    - La reproducción se detendrá automáticamente al expirar el tiempo.
+    - Puedes cancelar el temporizador en cualquier momento.
+8. **Gestión**: Selecciona episodios con el checkbox para borrarlos en lote, o usa el icono de papelera en cada tarjeta.
+9. **Modo Caminata**: Actívalo desde el menú superior para bloquear la pantalla. Mantén presionado el círculo central para desbloquear.
 
-### Tiempos de Traducción (Raspberry Pi 4)
+### Tiempos de Procesamiento (Raspberry Pi 4)
 
-| Duración del audio | Tiempo aprox. de traducción |
-|--------------------|----------------------------|
+#### Doblaje (Traducción)
+
+| Duración del audio | Tiempo aprox. |
+|--------------------|---------------|
 | 1 minuto | ~30 segundos |
 | 10 minutos | ~5 minutos |
 | 1 hora | ~30-40 minutos |
 
-> **Nota**: Los tiempos varían según la complejidad del audio y la carga del sistema.
+#### Transcripción
+
+| Duración del audio | Tiempo aprox. |
+|--------------------|---------------|
+| 1 minuto | ~15 segundos |
+| 10 minutos | ~2-3 minutos |
+| 1 hora | ~15-20 minutos |
+
+> **Nota**: Los tiempos varían según la complejidad del audio, el idioma y la carga del sistema.
 
 ## Credenciales por Defecto
 
@@ -188,12 +213,14 @@ Youtube2Podcast/
 ├── scripts/
 │   ├── install_dependencies.sh   # Script de instalación
 │   ├── download_models.py        # Descarga de modelos de IA
-│   └── process_translation.py    # Pipeline de traducción (Python)
+│   ├── process_translation.py    # Pipeline de doblaje (Python)
+│   └── process_transcription.py  # Pipeline de transcripción (Python)
 ├── src/
 │   ├── index.js                  # Servidor Express principal
 │   ├── db.js                     # Gestión de base de datos
 │   ├── downloader.js             # Descarga de videos
-│   └── translation_service.js    # Servicio de traducción (Node.js wrapper)
+│   ├── translation_service.js    # Servicio de doblaje (Node.js wrapper)
+│   └── transcription_service.js  # Servicio de transcripción (Node.js wrapper)
 ├── views/                 # Plantillas EJS
 ├── public/                # Assets estáticos (CSS, JS, iconos)
 ├── requirements.txt       # Dependencias Python
@@ -210,11 +237,12 @@ Youtube2Podcast/
 
 ## Solución de Problemas
 
-### Error: "No se pudo iniciar la traducción"
+### Error: "No se pudo iniciar la traducción/transcripción"
 - Verifica que el entorno virtual esté activo: `source venv/bin/activate`
 - Asegúrate de que los modelos estén descargados: `python scripts/download_models.py`
+- Verifica que `fpdf2` esté instalado: `pip install fpdf2`
 
-### La traducción es muy lenta
+### El doblaje o transcripción es muy lenta
 - Habilita más swap (ver sección de configuración para Raspberry Pi)
 - Cierra otras aplicaciones que consuman memoria
 - El modelo `tiny` de Whisper es el más rápido; no cambies a `base` o `small` en Raspberry Pi
@@ -222,3 +250,85 @@ Youtube2Podcast/
 ### Error de memoria (OOM)
 - Aumenta el swap a 4GB si es posible
 - Procesa audios más cortos (< 30 minutos)
+
+### El temporizador de sueño no funciona
+- Asegúrate de que el audio esté reproduciéndose desde el reproductor web integrado
+- El temporizador solo afecta la reproducción en la pestaña actual del navegador
+
+---
+
+## Guía Rápida de Deploy
+
+Copia y ejecuta estos comandos en orden para un deploy completo:
+
+```bash
+# 1. Clonar repositorio
+git clone <url-del-repo>
+cd Youtube2Podcast
+
+# 2. Instalar dependencias del sistema y crear venv de Python
+chmod +x scripts/install_dependencies.sh
+./scripts/install_dependencies.sh
+
+# 3. Activar entorno virtual e instalar dependencias Python adicionales
+source venv/bin/activate
+pip install fpdf2
+python scripts/download_models.py
+
+# 4. Instalar dependencias de Node.js
+npm install
+
+# 5. Construir CSS (opcional pero recomendado)
+npm run build:css
+
+# 6. Generar claves VAPID para notificaciones push
+npx web-push generate-vapid-keys
+
+# 7. Crear archivo .env con la configuración
+cat > .env << 'EOF'
+PORT=3000
+SESSION_SECRET=cambia_esto_por_un_secreto_seguro
+ENABLE_LOGS=true
+
+# Pegar aquí las claves generadas en el paso 6
+VAPID_PUBLIC_KEY=tu_clave_publica_aqui
+VAPID_PRIVATE_KEY=tu_clave_privada_aqui
+VAPID_SUBJECT=mailto:tu-email@ejemplo.com
+EOF
+
+# 8. Iniciar la aplicación
+npm start
+```
+
+### Deploy con PM2 (Producción)
+
+Para mantener la aplicación corriendo en segundo plano:
+
+```bash
+# Instalar PM2 globalmente
+npm install -g pm2
+
+# Iniciar con PM2
+pm2 start src/index.js --name youtube2podcast
+
+# Configurar inicio automático al reiniciar
+pm2 startup
+pm2 save
+
+# Comandos útiles de PM2
+pm2 logs youtube2podcast    # Ver logs
+pm2 restart youtube2podcast # Reiniciar
+pm2 stop youtube2podcast    # Detener
+```
+
+### Actualización
+
+```bash
+cd Youtube2Podcast
+git pull
+source venv/bin/activate
+pip install -r requirements.txt
+npm install
+npm run build:css
+pm2 restart youtube2podcast  # o: npm start
+```

@@ -1,50 +1,71 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Youtube2Podcast</title>
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/custom.css">
+    <link rel="stylesheet" href="/vendor/bi/font/bootstrap-icons.css">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#dc2626">
     <link rel="icon" type="image/png" href="/icons/logo.png">
     <link rel="apple-touch-icon" href="/icons/logo.png">
+    <script>
+        // Theme initialization - runs before page renders to avoid flash
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
 
-    <nav class="bg-gray-800 shadow-lg sticky top-0 z-50">
+    <nav class="bg-white dark:bg-gray-800 shadow-lg sticky top-0 z-50 transition-colors duration-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between py-2 items-center">
                 <div class="flex items-center gap-4">
                     <img src="/icons/logo.png" alt="Youtube2Podcast" class="w-auto rounded-sm" style="max-width: 80px;">
-                    <span class="text-xs bg-gray-700 px-2 py-1 rounded text-gray-300">v1.3</span>
+                    <span class="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300">v1.5</span>
                 </div>
                 <div class="flex items-center gap-4">
                     <!-- Push Notifications Toggle -->
-                    <button id="push-notifications-btn" title="Notificaciones Push" class="text-gray-300 hover:text-white relative">
-                        <svg id="push-icon-off" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-                        </svg>
-                        <svg id="push-icon-on" class="w-6 h-6 hidden text-green-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"></path>
-                        </svg>
+                    <button id="push-notifications-btn" title="Notificaciones Push" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white relative">
+                        <i id="push-icon-off" class="bi bi-bell text-xl"></i>
+                        <i id="push-icon-on" class="bi bi-bell-fill text-xl hidden text-green-500"></i>
                         <span id="push-badge" class="hidden absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></span>
                     </button>
                     
-                    <button id="walk-mode-btn" title="Activar Modo Caminata" class="text-gray-300 hover:text-white">
-                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQc6rEM9CAB3FlBxasuUJJKgK3N59DTlJ9Xcgi-MlQlEmg6u0Hc2rRXuNRcOd3mJKHU4Wg&usqp=CAU" alt="Modo Caminata" class="w-6 h-6 rounded-full object-cover">
+                    <!-- Theme Toggle -->
+                    <button id="theme-toggle-btn" title="Cambiar tema" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+                        <i id="theme-icon-dark" class="bi bi-moon-fill text-xl"></i>
+                        <i id="theme-icon-light" class="bi bi-sun-fill text-xl hidden text-yellow-500"></i>
                     </button>
                     
+                    <button id="walk-mode-btn" title="Activar Modo Caminata" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+                        <i class="bi bi-person-walking text-xl"></i>
+                    </button>
+                    
+                    <!-- Sleep Timer -->
+                    <button id="sleep-timer-btn" title="Temporizador de Sueño" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white relative">
+                        <i class="bi bi-stopwatch text-xl"></i>
+                    </button>
+                    <span id="timer-badge" class="hidden text-[8px] bg-orange-500 text-white rounded px-1 py-0.5 font-medium ml-0.5"></span>
+                    
                     <div class="flex items-center gap-2 md:gap-4">
-                        <span class="text-gray-400 text-sm hidden md:inline"><%= user %></span>
-                        <span class="text-xs bg-gray-700 px-2 py-1 rounded text-gray-300" title="Videos usados">
+                        <span class="text-gray-500 dark:text-gray-400 text-sm hidden md:inline"><%= user %></span>
+                        <span class="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300" title="Videos usados">
                             <%= episodeCount %>/<%= quotaLimit %>
                         </span>
                         <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
-                            <a href="/admin" class="admin-link text-sm text-blue-400 hover:text-blue-300">Admin</a>
+                            <a href="/admin" class="admin-link text-sm">Admin</a>
                         <% } %>
-                        <a href="/logout" class="text-gray-400 hover:text-white text-sm">Salir</a>
+                        <a href="/logout" class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-sm">Salir</a>
                     </div>
                 </div>
             </div>
@@ -65,7 +86,7 @@
         <div class="max-w-2xl mx-auto mb-8" id="input-section">
             <form action="/add" method="POST" class="flex gap-4 mb-6" onsubmit="document.getElementById('add-btn').disabled = true; document.getElementById('add-btn').innerText = '...';">
                 <input type="url" name="url" placeholder="Pegar URL de YouTube aquí..." required 
-                    class="flex-grow px-4 py-3 rounded-lg bg-gray-800 border border-gray-700 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition duration-200 text-white placeholder-gray-400">
+                    class="flex-grow px-4 py-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition duration-200 text-gray-900 dark:text-white placeholder-gray-400">
                 <button id="add-btn" type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 shadow-lg transform hover:scale-105">
                     Agregar
                 </button>
@@ -74,7 +95,7 @@
             <div class="flex justify-between items-center gap-4">
                  <!-- Search Input -->
                 <input type="text" id="searchInput" placeholder="Buscar episodios..." 
-                    class="flex-grow px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-gray-500 outline-none text-gray-300 placeholder-gray-500 text-sm">
+                    class="flex-grow px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:border-gray-500 outline-none text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-500 text-sm">
                 
                 <!-- Bulk Actions -->
                  <div class="flex items-center gap-2" id="bulk-actions" style="display: none;">
@@ -107,30 +128,28 @@
 
     </main>
 
-    <footer class="bg-gray-800 text-gray-500 py-6 mt-12 text-center text-sm">
-        <p>Youtube2Podcast v1.3 | <a href="/logout" class="hover:text-gray-300">Salir</a></p>
+    <footer class="bg-white dark:bg-gray-800 text-gray-500 py-6 mt-12 text-center text-sm border-t border-gray-200 dark:border-gray-700">
+        <p>Youtube2Podcast v1.5 | <a href="/logout" class="hover:text-gray-700 dark:hover:text-gray-300">Salir</a></p>
     </footer>
 
     <!-- Voice Selection Modal -->
-    <div id="voice-modal" class="fixed inset-0 bg-black bg-opacity-80 z-[9998] hidden flex items-center justify-center p-4">
-        <div class="bg-gray-800 rounded-xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden border border-gray-700">
-            <div class="p-4 border-b border-gray-700 flex justify-between items-center">
-                <h3 class="text-lg font-semibold text-white">Seleccionar Voz</h3>
+    <div id="voice-modal" class="fixed inset-0 bg-black bg-opacity-80 z-[9998] hidden flex items-center justify-center p-6">
+        <div class="bg-gray-800 rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden border border-gray-700">
+            <div class="p-6 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-xl font-semibold text-white">Seleccionar Voz</h3>
                 <button onclick="closeVoiceModal()" class="text-gray-400 hover:text-white">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+                    <i class="bi bi-x-lg"></i>
                 </button>
             </div>
-            <div class="p-4 overflow-y-auto max-h-[60vh]">
+            <div class="p-6 overflow-y-auto max-h-[60vh]">
                 <input type="hidden" id="voice-episode-id" value="">
                 
                 <!-- España -->
-                <div class="mb-4">
-                    <h4 class="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                <div class="mb-6">
+                    <h4 class="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
                         <span>🇪🇸</span> España
                     </h4>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-3">
                         <button type="button" onclick="selectVoice('es-ES-AlvaroNeural')" class="voice-option" data-voice="es-ES-AlvaroNeural">
                             <span class="voice-gender">♂</span> Álvaro
                         </button>
@@ -141,11 +160,11 @@
                 </div>
                 
                 <!-- México -->
-                <div class="mb-4">
-                    <h4 class="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                <div class="mb-6">
+                    <h4 class="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
                         <span>🇲🇽</span> México
                     </h4>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-3">
                         <button type="button" onclick="selectVoice('es-MX-JorgeNeural')" class="voice-option" data-voice="es-MX-JorgeNeural">
                             <span class="voice-gender">♂</span> Jorge
                         </button>
@@ -156,11 +175,11 @@
                 </div>
                 
                 <!-- Argentina -->
-                <div class="mb-4">
-                    <h4 class="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                <div class="mb-6">
+                    <h4 class="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
                         <span>🇦🇷</span> Argentina
                     </h4>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-3">
                         <button type="button" onclick="selectVoice('es-AR-TomasNeural')" class="voice-option" data-voice="es-AR-TomasNeural">
                             <span class="voice-gender">♂</span> Tomás
                         </button>
@@ -171,11 +190,11 @@
                 </div>
                 
                 <!-- Colombia -->
-                <div class="mb-4">
-                    <h4 class="text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
+                <div class="mb-6">
+                    <h4 class="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
                         <span>🇨🇴</span> Colombia
                     </h4>
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-3">
                         <button type="button" onclick="selectVoice('es-CO-GonzaloNeural')" class="voice-option" data-voice="es-CO-GonzaloNeural">
                             <span class="voice-gender">♂</span> Gonzalo
                         </button>
@@ -185,7 +204,7 @@
                     </div>
                 </div>
             </div>
-            <div class="p-4 border-t border-gray-700 flex justify-end gap-3">
+            <div class="p-6 border-t border-gray-700 flex justify-end gap-4">
                 <button onclick="closeVoiceModal()" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition">
                     Cancelar
                 </button>
@@ -196,10 +215,99 @@
         </div>
     </div>
 
+    <!-- Transcription Language Modal -->
+    <div id="transcription-modal" class="fixed inset-0 bg-black bg-opacity-80 z-[9998] hidden flex items-center justify-center p-6">
+        <div class="bg-gray-800 rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-hidden border border-gray-700">
+            <div class="p-6 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-xl font-semibold text-white">Obtener Transcripción</h3>
+                <button onclick="closeTranscriptionModal()" class="text-gray-400 hover:text-white">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <input type="hidden" id="transcription-episode-id" value="">
+                
+                <p class="text-gray-400 text-sm mb-4">Selecciona el idioma del audio para obtener una transcripción más precisa:</p>
+                
+                <select id="transcription-language" class="w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none">
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                    <option value="fr">Français</option>
+                    <option value="de">Deutsch</option>
+                    <option value="it">Italiano</option>
+                    <option value="pt">Português</option>
+                    <option value="nl">Nederlands</option>
+                    <option value="pl">Polski</option>
+                    <option value="ru">Русский</option>
+                    <option value="ja">日本語</option>
+                    <option value="ko">한국어</option>
+                    <option value="zh">中文</option>
+                    <option value="ar">العربية</option>
+                    <option value="hi">हिन्दी</option>
+                    <option value="tr">Türkçe</option>
+                    <option value="vi">Tiếng Việt</option>
+                    <option value="uk">Українська</option>
+                    <option value="sv">Svenska</option>
+                </select>
+                
+                <p class="text-gray-500 text-xs mt-3">
+                    <i class="bi bi-info-circle"></i> La transcripción se generará como PDF con timestamps.
+                </p>
+            </div>
+            <div class="p-6 border-t border-gray-700 flex justify-end gap-4">
+                <button onclick="closeTranscriptionModal()" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition">
+                    Cancelar
+                </button>
+                <button id="start-transcription-btn" onclick="confirmTranscription()" class="px-4 py-2 text-sm bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition font-medium">
+                    <i class="bi bi-file-earmark-text me-1"></i> Iniciar Transcripción
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sleep Timer Modal -->
+    <div id="sleep-timer-modal" class="fixed inset-0 bg-black bg-opacity-80 z-[9998] hidden flex items-center justify-center p-6">
+        <div class="bg-gray-800 rounded-xl shadow-2xl max-w-sm w-full overflow-hidden border border-gray-700">
+            <div class="p-6 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-xl font-semibold text-white"><i class="bi bi-stopwatch me-2"></i>Temporizador</h3>
+                <button onclick="closeSleepTimerModal()" class="text-gray-400 hover:text-white">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <p class="text-gray-400 text-sm mb-4">La reproducción se detendrá automáticamente después del tiempo seleccionado:</p>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="startSleepTimer(15)" class="timer-option py-3 px-4 rounded-lg bg-gray-700 hover:bg-orange-600 text-white transition font-medium">
+                        15 min
+                    </button>
+                    <button onclick="startSleepTimer(30)" class="timer-option py-3 px-4 rounded-lg bg-gray-700 hover:bg-orange-600 text-white transition font-medium">
+                        30 min
+                    </button>
+                    <button onclick="startSleepTimer(45)" class="timer-option py-3 px-4 rounded-lg bg-gray-700 hover:bg-orange-600 text-white transition font-medium">
+                        45 min
+                    </button>
+                    <button onclick="startSleepTimer(60)" class="timer-option py-3 px-4 rounded-lg bg-gray-700 hover:bg-orange-600 text-white transition font-medium">
+                        60 min
+                    </button>
+                </div>
+                
+                <!-- Active Timer Display -->
+                <div id="active-timer-display" class="hidden mt-6 p-4 bg-orange-900/30 border border-orange-700 rounded-lg text-center">
+                    <p class="text-orange-400 text-sm mb-2">Temporizador activo</p>
+                    <p id="timer-countdown" class="text-3xl font-bold text-white">00:00</p>
+                    <button onclick="cancelSleepTimer()" class="mt-3 text-sm text-red-400 hover:text-red-300 transition">
+                        <i class="bi bi-x-circle me-1"></i> Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Walk Mode Overlay -->
     <div id="walk-overlay" class="fixed inset-0 bg-black bg-opacity-90 z-[9999] hidden flex flex-col items-center justify-center text-center touch-none select-none p-4">
         <div class="text-gray-400 mb-6 sm:mb-8 animate-pulse px-4">
-            <svg class="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 mx-auto mb-3 sm:mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            <i class="bi bi-lock-fill text-5xl sm:text-6xl md:text-7xl mx-auto mb-3 sm:mb-4 block"></i>
             <h2 class="text-xl sm:text-2xl md:text-3xl font-bold text-white">Modo Caminata Activo</h2>
             <p class="mt-2 text-xs sm:text-sm md:text-base">Pantalla bloqueada para evitar toques accidentales.</p>
         </div>
@@ -291,6 +399,25 @@
         function handleSSEMessage(event) {
             const data = JSON.parse(event.data);
             console.log('SSE Event:', data);
+
+            // Handle transcription events
+            if (data.type === 'transcription') {
+                console.log('Transcription SSE event:', data);
+                if (data.transcriptionStatus === 'ready') {
+                    console.log('Transcription ready, updating card...');
+                    refreshEpisodeCard(data.episodeId);
+                } else if (data.transcriptionStatus === 'error') {
+                    refreshEpisodeCard(data.episodeId);
+                } else if (data.transcriptionStatus === 'processing') {
+                    updateTranscriptionProgress(data.episodeId, data.videoId, data.stage, data.percent, data.message);
+                    const card = document.querySelector(`.episode-card[data-youtube-id="${data.videoId}"]`);
+                    if (card && !card.classList.contains('transcribing')) {
+                        card.classList.add('transcribing');
+                        ensureTranscriptionLogsContainer(card);
+                    }
+                }
+                return;
+            }
 
             // Handle translation events
             if (data.type === 'translation') {
@@ -389,7 +516,182 @@
             if (e.key === 'Escape' && !voiceModal.classList.contains('hidden')) {
                 closeVoiceModal();
             }
+            if (e.key === 'Escape' && !transcriptionModal.classList.contains('hidden')) {
+                closeTranscriptionModal();
+            }
+            if (e.key === 'Escape' && !sleepTimerModal.classList.contains('hidden')) {
+                closeSleepTimerModal();
+            }
         });
+
+        // Transcription Modal
+        const transcriptionModal = document.getElementById('transcription-modal');
+        const transcriptionEpisodeIdInput = document.getElementById('transcription-episode-id');
+        const transcriptionLanguageSelect = document.getElementById('transcription-language');
+        
+        function openTranscriptionModal(episodeId) {
+            transcriptionEpisodeIdInput.value = episodeId;
+            transcriptionLanguageSelect.value = 'en'; // Default to English
+            transcriptionModal.classList.remove('hidden');
+        }
+        
+        function closeTranscriptionModal() {
+            transcriptionModal.classList.add('hidden');
+        }
+        
+        async function confirmTranscription() {
+            const episodeId = transcriptionEpisodeIdInput.value;
+            const language = transcriptionLanguageSelect.value;
+            closeTranscriptionModal();
+            
+            try {
+                const response = await fetch(`/transcribe/${episodeId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ language })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    await refreshEpisodeCard(episodeId);
+                } else {
+                    alert('Error: ' + (data.error || 'No se pudo iniciar la transcripción'));
+                }
+            } catch (err) {
+                console.error('Transcription error:', err);
+                alert('Error de conexión al iniciar la transcripción');
+            }
+        }
+        
+        // Close transcription modal on backdrop click
+        transcriptionModal.addEventListener('click', (e) => {
+            if (e.target === transcriptionModal) closeTranscriptionModal();
+        });
+
+        // Sleep Timer
+        const sleepTimerBtn = document.getElementById('sleep-timer-btn');
+        const sleepTimerModal = document.getElementById('sleep-timer-modal');
+        const timerBadge = document.getElementById('timer-badge');
+        const timerCountdown = document.getElementById('timer-countdown');
+        const activeTimerDisplay = document.getElementById('active-timer-display');
+        
+        let sleepTimerId = null;
+        let sleepTimerEndTime = null;
+        let sleepTimerUpdateInterval = null;
+        
+        sleepTimerBtn.addEventListener('click', () => {
+            sleepTimerModal.classList.remove('hidden');
+            updateTimerModalDisplay();
+        });
+        
+        function closeSleepTimerModal() {
+            sleepTimerModal.classList.add('hidden');
+        }
+        
+        sleepTimerModal.addEventListener('click', (e) => {
+            if (e.target === sleepTimerModal) closeSleepTimerModal();
+        });
+        
+        function startSleepTimer(minutes) {
+            // Cancel existing timer if any
+            if (sleepTimerId) {
+                clearTimeout(sleepTimerId);
+                clearInterval(sleepTimerUpdateInterval);
+            }
+            
+            sleepTimerEndTime = Date.now() + (minutes * 60 * 1000);
+            
+            // Set the main timeout
+            sleepTimerId = setTimeout(() => {
+                stopAllAudio();
+                showTimerNotification();
+                cancelSleepTimer();
+            }, minutes * 60 * 1000);
+            
+            // Update display every second
+            sleepTimerUpdateInterval = setInterval(updateTimerDisplay, 1000);
+            
+            updateTimerDisplay();
+            updateTimerModalDisplay();
+            closeSleepTimerModal();
+        }
+        
+        function cancelSleepTimer() {
+            if (sleepTimerId) {
+                clearTimeout(sleepTimerId);
+                sleepTimerId = null;
+            }
+            if (sleepTimerUpdateInterval) {
+                clearInterval(sleepTimerUpdateInterval);
+                sleepTimerUpdateInterval = null;
+            }
+            sleepTimerEndTime = null;
+            
+            timerBadge.classList.add('hidden');
+            timerBadge.textContent = '';
+            sleepTimerBtn.classList.remove('timer-active');
+            updateTimerModalDisplay();
+        }
+        
+        function updateTimerDisplay() {
+            if (!sleepTimerEndTime) return;
+            
+            const remaining = Math.max(0, sleepTimerEndTime - Date.now());
+            const minutes = Math.floor(remaining / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            
+            const displayText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            timerBadge.textContent = minutes > 0 ? `${minutes}m` : `${seconds}s`;
+            timerBadge.classList.remove('hidden');
+            sleepTimerBtn.classList.add('timer-active');
+            
+            if (timerCountdown) {
+                timerCountdown.textContent = displayText;
+            }
+        }
+        
+        function updateTimerModalDisplay() {
+            if (sleepTimerEndTime) {
+                activeTimerDisplay.classList.remove('hidden');
+                updateTimerDisplay();
+            } else {
+                activeTimerDisplay.classList.add('hidden');
+            }
+        }
+        
+        function stopAllAudio() {
+            // Pause all audio elements
+            document.querySelectorAll('audio').forEach(audio => {
+                if (!audio.paused) {
+                    audio.pause();
+                }
+            });
+            
+            // Update all custom player UIs
+            document.querySelectorAll('.custom-audio-player').forEach(player => {
+                player.classList.remove('playing');
+                const playIcon = player.querySelector('.play-icon');
+                const pauseIcon = player.querySelector('.pause-icon');
+                if (playIcon) playIcon.classList.remove('hidden');
+                if (pauseIcon) pauseIcon.classList.add('hidden');
+            });
+        }
+        
+        function showTimerNotification() {
+            // Show a toast/notification
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-orange-600 text-white px-6 py-3 rounded-lg shadow-lg z-[10000] flex items-center gap-2';
+            toast.innerHTML = '<i class="bi bi-stopwatch"></i> Reproducción detenida por temporizador';
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.transition = 'opacity 0.5s';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 500);
+            }, 4000);
+        }
 
         // Translation Functions
         async function startTranslation(episodeId, voice = 'es-ES-AlvaroNeural') {
@@ -463,6 +765,52 @@
             }
         }
         
+        function ensureTranscriptionLogsContainer(card) {
+            if (!card.querySelector('.transcription-logs-container')) {
+                const contentDiv = card.querySelector('.p-4');
+                if (contentDiv) {
+                    const logsHtml = `
+                        <div class="transcription-logs-container mt-3 p-2 bg-gray-800 rounded border border-purple-700 h-16 overflow-hidden text-xs font-mono relative">
+                            <div class="logs-fade-top"></div>
+                            <div class="transcription-logs text-gray-400">
+                                <div class="log-line text-purple-400">Iniciando transcripción...</div>
+                            </div>
+                            <div class="logs-fade-bottom"></div>
+                        </div>
+                    `;
+                    contentDiv.insertAdjacentHTML('beforeend', logsHtml);
+                }
+            }
+        }
+        
+        function updateTranscriptionProgress(episodeId, videoId, stage, percent, message) {
+            const card = document.querySelector(`.episode-card[data-youtube-id="${videoId}"]`);
+            if (card) {
+                console.log(`Transcription progress [${videoId}]: ${stage} - ${percent}% - ${message}`);
+                
+                const logsContainer = card.querySelector('.transcription-logs');
+                if (logsContainer) {
+                    const logLine = document.createElement('div');
+                    logLine.className = `log-line ${getTranscriptionLogColorClass(stage)}`;
+                    logLine.textContent = `[${stage}] ${percent}% - ${message}`;
+                    logsContainer.appendChild(logLine);
+                    
+                    const allLogs = logsContainer.querySelectorAll('.log-line');
+                    if (allLogs.length > 10) {
+                        allLogs[0].remove();
+                    }
+                }
+            }
+        }
+        
+        function getTranscriptionLogColorClass(stage) {
+            if (stage === 'error') return 'text-red-400';
+            if (stage === 'done') return 'text-green-400';
+            if (stage === 'stt') return 'text-purple-400';
+            if (stage === 'pdf') return 'text-blue-400';
+            return 'text-gray-300';
+        }
+        
         // Función para refrescar una tarjeta de episodio via AJAX
         async function refreshEpisodeCard(episodeId) {
             try {
@@ -532,8 +880,8 @@
         // Polling fallback for state sync (runs every 10s if there are processing items)
         // This handles cases where SSE events are missed (network issues, server restart, etc.)
         function getProcessingEpisodeIds() {
-            // Include both downloading and translating episodes
-            const processingCards = document.querySelectorAll('.episode-card.processing, .episode-card.translating');
+            // Include downloading, translating, and transcribing episodes
+            const processingCards = document.querySelectorAll('.episode-card.processing, .episode-card.translating, .episode-card.transcribing');
             const ids = [];
             processingCards.forEach(card => {
                 const episodeId = card.dataset.episodeId;
@@ -574,6 +922,13 @@
                     // Si sigue traduciendo, actualizar logs
                     if (ep.translation_status === 'processing') {
                         await fetchAndDisplayLogs(ep.id);
+                    }
+                    
+                    // Si cambió el estado de transcripción
+                    const wasTranscribing = card.classList.contains('transcribing');
+                    if (wasTranscribing && (ep.transcription_status === 'ready' || ep.transcription_status === 'error')) {
+                        await refreshEpisodeCard(ep.id);
+                        continue;
                     }
                 }
             } catch (err) {
@@ -872,6 +1227,31 @@
             }
             return outputArray;
         }
+
+        // Theme Toggle
+        const themeToggleBtn = document.getElementById('theme-toggle-btn');
+        const themeIconDark = document.getElementById('theme-icon-dark');
+        const themeIconLight = document.getElementById('theme-icon-light');
+
+        function updateThemeIcons() {
+            const isDark = document.documentElement.classList.contains('dark');
+            if (isDark) {
+                themeIconDark.classList.remove('hidden');
+                themeIconLight.classList.add('hidden');
+            } else {
+                themeIconDark.classList.add('hidden');
+                themeIconLight.classList.remove('hidden');
+            }
+        }
+
+        // Initialize icons on load
+        updateThemeIcons();
+
+        themeToggleBtn.addEventListener('click', () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeIcons();
+        });
     </script>
 </body>
 </html>

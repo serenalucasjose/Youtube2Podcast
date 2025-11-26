@@ -2,6 +2,20 @@ const youtubedl = require('youtube-dl-exec');
 const path = require('path');
 const fs = require('fs');
 const db = require('./db');
+const webPush = require('web-push');
+
+// Configure web-push (may already be configured in index.js, but safe to set again)
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    try {
+        webPush.setVapidDetails(
+            process.env.VAPID_SUBJECT || 'mailto:admin@youtube2podcast.local',
+            process.env.VAPID_PUBLIC_KEY,
+            process.env.VAPID_PRIVATE_KEY
+        );
+    } catch (e) {
+        // Already configured, ignore
+    }
+}
 
 const DOWNLOADS_DIR = path.join(__dirname, '../downloads');
 const TEMP_DIR = path.join(DOWNLOADS_DIR, 'temp');
@@ -120,6 +134,12 @@ async function processVideo(url, userId) {
             cleanupOutputFile(videoId);
             db.updateEpisodeStatus(videoId, 'error');
             progressEmitter.emit('progress', { videoId, status: 'error', message: err.message });
+            
+            // Send push notification for error
+            const failedEpisode = db.getEpisodeByYoutubeId(videoId);
+            if (failedEpisode && failedEpisode.user_id) {
+                sendPushNotification(failedEpisode.user_id, failedEpisode.title || 'Video', false);
+            }
         });
 
         // Return immediately so UI can show the card
@@ -213,6 +233,69 @@ async function performDownload(url, videoId) {
     db.updateEpisodeStatus(videoId, 'ready', outputFileName);
     progressEmitter.emit('progress', { videoId, status: 'done', percent: 100 });
     logInfo(`Download and conversion complete for ${videoId}`);
+    
+    // Send push notification
+    const episode = db.getEpisodeByYoutubeId(videoId);
+    if (episode && episode.user_id) {
+        sendPushNotification(episode.user_id, episode.title, true);
+    }
+}
+
+/**
+ * Envía notificación push al usuario cuando finaliza la descarga.
+ * @param {number} userId - ID del usuario.
+ * @param {string} title - Título del episodio.
+ * @param {boolean} success - Si la descarga fue exitosa.
+ */
+async function sendPushNotification(userId, title, success) {
+    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+        logInfo('Push notifications not configured, skipping...');
+        return;
+    }
+    
+    try {
+        const subscriptions = db.getPushSubscriptionsByUserId(userId);
+        
+        if (!subscriptions || subscriptions.length === 0) {
+            logInfo(`No push subscriptions for user ${userId}`);
+            return;
+        }
+        
+        const payload = JSON.stringify({
+            title: success ? '¡Podcast listo!' : 'Error en descarga',
+            body: success 
+                ? `"${title}" está listo para escuchar` 
+                : `Error al procesar "${title}"`,
+            icon: '/icons/logo.png',
+            tag: 'download-complete',
+            url: '/'
+        });
+        
+        for (const sub of subscriptions) {
+            const pushSubscription = {
+                endpoint: sub.endpoint,
+                keys: {
+                    auth: sub.keys_auth,
+                    p256dh: sub.keys_p256dh
+                }
+            };
+            
+            try {
+                await webPush.sendNotification(pushSubscription, payload);
+                logInfo(`Push notification sent to user ${userId}`);
+            } catch (err) {
+                if (err.statusCode === 410 || err.statusCode === 404) {
+                    // Subscription expired or invalid, remove it
+                    db.deletePushSubscription(sub.endpoint);
+                    logInfo(`Removed expired subscription for user ${userId}`);
+                } else {
+                    logError(`Error sending push notification:`, err);
+                }
+            }
+        }
+    } catch (err) {
+        logError('Error in sendPushNotification:', err);
+    }
 }
 
 module.exports = {

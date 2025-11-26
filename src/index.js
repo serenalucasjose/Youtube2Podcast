@@ -9,6 +9,7 @@ const webPush = require('web-push');
 const db = require('./db');
 const downloader = require('./downloader');
 const translationService = require('./translation_service');
+const transcriptionService = require('./transcription_service');
 
 // Configure web-push with VAPID keys
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -33,6 +34,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 app.use('/downloads', express.static(path.join(__dirname, '../downloads')));
+// Serve Bootstrap Icons from node_modules
+app.use('/vendor/bi', express.static(path.join(__dirname, '../node_modules/bootstrap-icons')));
 
 // Session Setup
 app.use(session({
@@ -119,6 +122,10 @@ app.get('/progress', requireAuth, (req, res) => {
         try {
             translationService.translationEmitter.removeListener('progress', onTranslationProgress);
         } catch (e) { /* ignore */ }
+        
+        try {
+            transcriptionService.transcriptionEmitter.removeListener('progress', onTranscriptionProgress);
+        } catch (e) { /* ignore */ }
     };
 
     const onProgress = (data) => {
@@ -134,6 +141,15 @@ app.get('/progress', requireAuth, (req, res) => {
         if (!isAlive) return;
         try {
             res.write(`data: ${JSON.stringify({ ...data, type: 'translation' })}\n\n`);
+        } catch (err) {
+            cleanup();
+        }
+    };
+
+    const onTranscriptionProgress = (data) => {
+        if (!isAlive) return;
+        try {
+            res.write(`data: ${JSON.stringify({ ...data, type: 'transcription' })}\n\n`);
         } catch (err) {
             cleanup();
         }
@@ -162,6 +178,7 @@ app.get('/progress', requireAuth, (req, res) => {
     // Add listeners AFTER registering cleanup
     downloader.progressEmitter.on('progress', onProgress);
     translationService.translationEmitter.on('progress', onTranslationProgress);
+    transcriptionService.transcriptionEmitter.on('progress', onTranscriptionProgress);
 });
 
 // Home: List episodes
@@ -237,6 +254,9 @@ app.post('/delete', requireAuth, (req, res) => {
                 
                 // Delete translated file if exists
                 translationService.cleanupTranslatedFile(episode);
+                
+                // Delete transcription file if exists
+                transcriptionService.cleanupTranscriptionFile(episode);
                 
                 // Delete any temp files associated with this episode (by youtube_id)
                 if (episode.youtube_id && fs.existsSync(tempDir)) {
@@ -317,6 +337,100 @@ app.post('/translate/:id', requireAuth, async (req, res) => {
     }
 });
 
+// Transcribe Episode (Manual trigger)
+app.post('/transcribe/:id', requireAuth, async (req, res) => {
+    const episode = db.getEpisodeById(req.params.id);
+    
+    if (!episode) {
+        return res.status(404).json({ error: 'Episodio no encontrado' });
+    }
+    
+    // Check ownership
+    if (episode.user_id !== req.session.userId && req.session.role !== 'admin') {
+        return res.status(403).json({ error: 'No autorizado' });
+    }
+
+    if (episode.status !== 'ready') {
+        return res.status(400).json({ error: 'El video aún no está listo' });
+    }
+
+    // Obtener idioma seleccionado (default: en)
+    const language = req.body.language || 'en';
+    // Flag para forzar regeneración (default: false)
+    const force = req.body.force === true || req.body.force === 'true';
+
+    try {
+        const updatedEpisode = await transcriptionService.startTranscription(episode.id, language, force);
+        res.json({ 
+            success: true, 
+            message: 'Transcripción iniciada',
+            episode: updatedEpisode
+        });
+    } catch (error) {
+        console.error('Error starting transcription:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Admin: Regenerate Transcription (with force flag)
+app.post('/admin/episodes/:id/transcribe', requireAdmin, async (req, res) => {
+    const episode = db.getEpisodeById(req.params.id);
+    
+    if (!episode) {
+        return res.status(404).json({ error: 'Episodio no encontrado' });
+    }
+
+    if (episode.status !== 'ready') {
+        return res.status(400).json({ error: 'El video aún no está listo' });
+    }
+
+    const language = req.body.language || 'en';
+
+    try {
+        // Siempre forzar regeneración desde el admin
+        const updatedEpisode = await transcriptionService.startTranscription(episode.id, language, true);
+        res.json({ 
+            success: true, 
+            message: `Transcripción en ${transcriptionService.SUPPORTED_LANGUAGES[language] || language} iniciada`,
+            episode: updatedEpisode
+        });
+    } catch (error) {
+        console.error('Error starting transcription from admin:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Download Transcription PDF
+app.get('/download-transcription/:id', requireAuth, (req, res) => {
+    const episode = db.getEpisodeById(req.params.id);
+    
+    if (!episode) {
+        return res.status(404).send('Episodio no encontrado');
+    }
+    
+    // Check ownership
+    if (episode.user_id !== req.session.userId && req.session.role !== 'admin') {
+        return res.status(403).send('No autorizado');
+    }
+
+    if (episode.transcription_status !== 'ready' || !episode.transcription_file_path) {
+        return res.status(400).send('Transcripción no disponible');
+    }
+
+    const filePath = path.join(__dirname, '../downloads', episode.transcription_file_path);
+    
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).send('Archivo no encontrado');
+    }
+    
+    res.download(filePath, `${episode.title} - Transcripción.pdf`);
+});
+
+// Get supported transcription languages
+app.get('/api/transcription-languages', requireAuth, (req, res) => {
+    res.json(transcriptionService.SUPPORTED_LANGUAGES);
+});
+
 // Download Translated Episode
 app.get('/download-translated/:id', requireAuth, (req, res) => {
     const episode = db.getEpisodeById(req.params.id);
@@ -347,9 +461,34 @@ app.get('/download-translated/:id', requireAuth, (req, res) => {
 // Admin Panel
 app.get('/admin', requireAdmin, (req, res) => {
     const users = db.getAllUsers();
+    const allEpisodes = db.getEpisodes(); // Get all episodes (no user filter)
+    const stats = db.getAdminStats();
     const error = req.query.error || null;
+    
+    // Calculate disk usage
+    const downloadsDir = path.join(__dirname, '../downloads');
+    let diskUsage = 0;
+    try {
+        const files = fs.readdirSync(downloadsDir);
+        for (const file of files) {
+            const filePath = path.join(downloadsDir, file);
+            const stat = fs.statSync(filePath);
+            if (stat.isFile()) {
+                diskUsage += stat.size;
+            }
+        }
+    } catch (err) {
+        console.error('Error calculating disk usage:', err);
+    }
+    
     res.render('admin', { 
         users,
+        episodes: allEpisodes,
+        stats: {
+            ...stats,
+            diskUsage
+        },
+        supportedLanguages: transcriptionService.SUPPORTED_LANGUAGES,
         user: {
             id: req.session.userId,
             username: req.session.username,

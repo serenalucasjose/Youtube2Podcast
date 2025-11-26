@@ -81,22 +81,35 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
 
 /* Admin Link Fix */
 .admin-link {
-    color: #f87171; /* red-400 */
+    color: #dc2626; /* red-600 for light mode */
     font-weight: 600;
     text-decoration: none;
     margin-right: 10px;
 }
+
+.dark .admin-link {
+    color: #f87171; /* red-400 */
+}
+
 .admin-link:hover {
-    color: #fca5a5; /* red-300 */
+    color: #ef4444; /* red-500 for light mode */
     text-decoration: underline;
+}
+
+.dark .admin-link:hover {
+    color: #fca5a5; /* red-300 */
 }
 
 /* Admin Panel Table Fixes */
 .admin-table-container {
     width: 100%;
     overflow-x: auto;
-    border: 1px solid #374151; /* gray-700 */
+    border: 1px solid #e5e7eb; /* gray-200 for light mode */
     border-radius: 0.5rem;
+}
+
+.dark .admin-table-container {
+    border-color: #374151; /* gray-700 */
 }
 
 .admin-table {
@@ -112,27 +125,41 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
 }
 
 .admin-table th {
-    background-color: #111827; /* gray-900 */
-    color: #e5e7eb; /* gray-200 */
+    background-color: #f9fafb; /* gray-50 for light mode */
+    color: #374151; /* gray-700 */
     font-weight: 700;
     text-transform: uppercase;
     font-size: 0.75rem;
     letter-spacing: 0.05em;
 }
 
+.dark .admin-table th {
+    background-color: #111827; /* gray-900 */
+    color: #e5e7eb; /* gray-200 */
+}
+
 .admin-table td {
-    border-top: 1px solid #374151; /* gray-700 */
+    border-top: 1px solid #e5e7eb; /* gray-200 for light mode */
     vertical-align: middle;
+}
+
+.dark .admin-table td {
+    border-top-color: #374151; /* gray-700 */
 }
 
 /* Admin Layout Gap Fix */
 .admin-section {
     padding: 2rem;
-    background-color: #1f2937; /* gray-800 */
+    background-color: #ffffff; /* white for light mode */
     border-radius: 0.75rem;
-    border: 1px solid #374151; /* gray-700 */
+    border: 1px solid #e5e7eb; /* gray-200 */
     margin-bottom: 2rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.dark .admin-section {
+    background-color: #1f2937; /* gray-800 */
+    border-color: #374151; /* gray-700 */
 }
 
 /* Inline Edit Input Styles */
@@ -163,18 +190,27 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
 .episode-card {
     display: flex;
     flex-direction: row;
-    background-color: #1f2937; /* gray-800 */
-    border: 1px solid #374151; /* gray-700 */
+    background-color: #ffffff; /* white for light mode */
+    border: 1px solid #e5e7eb; /* gray-200 */
     border-radius: 0.5rem;
     overflow: hidden;
     position: relative;
     align-items: center;
     padding: 0.75rem;
     gap: 1rem;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.dark .episode-card {
+    background-color: #1f2937; /* gray-800 */
+    border-color: #374151; /* gray-700 */
 }
 
 .episode-card:hover {
+    background-color: #f9fafb; /* gray-50 for light mode */
+}
+
+.dark .episode-card:hover {
     background-color: #273549; /* slightly lighter gray */
 }
 
@@ -192,7 +228,7 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
 .episode-title {
     font-size: 1rem;
     font-weight: 700;
-    color: #f3f4f6; /* gray-100 */
+    color: #1f2937; /* gray-800 for light mode */
     margin-bottom: 0.25rem;
     line-height: 1.3;
     display: -webkit-box;
@@ -203,22 +239,48 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
     letter-spacing: 0.025em;
 }
 
-/* Date and Actions Row */
+.dark .episode-title {
+    color: #f3f4f6; /* gray-100 */
+}
+
+/* Date Row */
 .card-meta-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     margin-top: 0.25rem;
     font-size: 0.85rem;
     color: #9ca3af; /* gray-400 */
 }
 
+/* Actions Row - Separate line, right-aligned */
+.card-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e5e7eb; /* gray-200 for light mode */
+}
+
+.dark .card-actions-row {
+    border-top-color: #374151; /* gray-700 */
+}
+
+.card-actions-row i {
+    font-size: 1.1rem;
+}
+
 .card-date {
     font-size: 0.75rem;
-    color: #9ca3af; /* gray-400 */
+    color: #6b7280; /* gray-500 for light mode */
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.dark .card-date {
+    color: #9ca3af; /* gray-400 */
 }
 
 /* The Thumbnail Area (Right side) */
@@ -785,4 +847,79 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
 
 .voice-gender.female {
     color: #f472b6;
+}
+
+/* === SLEEP TIMER === */
+#sleep-timer-btn.timer-active {
+    color: #f97316 !important; /* orange-500 */
+}
+
+#sleep-timer-btn.timer-active:hover {
+    color: #fb923c !important; /* orange-400 */
+}
+
+#timer-badge {
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Timer option buttons in modal */
+.timer-option {
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.timer-option:hover {
+    transform: scale(1.02);
+}
+
+/* === TRANSCRIPTION LOGS CONTAINER === */
+.transcription-logs-container {
+    position: relative;
+    height: 4rem;
+    overflow: hidden;
+}
+
+.transcription-logs {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 100%;
+    padding-bottom: 0.25rem;
+}
+
+/* Transcription in progress animation */
+@keyframes pulse-transcribe {
+    0%, 100% { 
+        border-color: #7e22ce; 
+        box-shadow: 0 0 0 0 rgba(126, 34, 206, 0.4);
+    }
+    50% { 
+        border-color: #a855f7; 
+        box-shadow: 0 0 15px 2px rgba(168, 85, 247, 0.5);
+    }
+}
+
+.episode-card.transcribing {
+    animation: pulse-transcribe 1.5s infinite ease-in-out;
+    border-color: #7e22ce;
+}
+
+/* Transcription logs fade effect */
+.transcription-logs .log-line:not(:nth-last-child(-n+3)) {
+    opacity: 0.3;
+}
+
+.transcription-logs .log-line:nth-last-child(3) {
+    opacity: 0.5;
+}
+
+.transcription-logs .log-line:nth-last-child(2) {
+    opacity: 0.75;
+}
+
+.transcription-logs .log-line:last-child {
+    opacity: 1;
+    color: #e5e7eb;
 }

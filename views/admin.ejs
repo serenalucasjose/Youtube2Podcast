@@ -1,78 +1,1108 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Youtube2Podcast</title>
+    <title>Admin Dashboard - Youtube2Podcast</title>
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/custom.css">
+    <link rel="stylesheet" href="/vendor/bi/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <style>
+        /* Admin Dashboard Specific Styles */
+        :root {
+            --sidebar-width: 260px;
+            --header-height: 64px;
+            --accent-coral: #FF6B6B;
+            --accent-teal: #4ECDC4;
+            --accent-gold: #FFE66D;
+            --accent-purple: #A855F7;
+            
+            /* Light theme colors */
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --bg-sidebar: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border-color: rgba(0,0,0,0.08);
+            --card-bg: #ffffff;
+            --card-border: rgba(0,0,0,0.05);
+            --input-bg: #f1f5f9;
+            --input-border: #e2e8f0;
+            --table-hover: rgba(0,0,0,0.02);
+        }
+        
+        .dark {
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #1f1f3a;
+            --bg-sidebar: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255,255,255,0.7);
+            --text-muted: rgba(255,255,255,0.4);
+            --border-color: rgba(255,255,255,0.05);
+            --card-bg: linear-gradient(145deg, #1a1a2e 0%, #1f1f3a 100%);
+            --card-border: rgba(255,255,255,0.05);
+            --input-bg: rgba(0,0,0,0.3);
+            --input-border: rgba(255,255,255,0.1);
+            --table-hover: rgba(255,255,255,0.02);
+        }
+        
+        .admin-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .admin-sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            border-right: 1px solid rgba(255,255,255,0.05);
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-brand {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .sidebar-brand img {
+            height: 36px;
+            width: auto;
+        }
+        
+        .sidebar-brand span {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #fff;
+            letter-spacing: -0.5px;
+        }
+        
+        .sidebar-nav {
+            flex: 1;
+            padding: 1rem 0;
+            overflow-y: auto;
+        }
+        
+        .nav-section {
+            padding: 0.5rem 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .nav-section-title {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: rgba(255,255,255,0.35);
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            margin: 0.25rem 0.5rem;
+            border-radius: 8px;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .nav-item:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+        
+        .nav-item.active {
+            background: linear-gradient(135deg, var(--accent-coral) 0%, #ff8e53 100%);
+            color: #fff;
+            font-weight: 500;
+        }
+        
+        .nav-item i {
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-footer {
+            padding: 1rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-teal) 0%, var(--accent-coral) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+        
+        .user-details {
+            flex: 1;
+        }
+        
+        .user-name {
+            font-weight: 600;
+            color: #fff;
+            font-size: 0.85rem;
+        }
+        
+        .user-role {
+            font-size: 0.7rem;
+            color: var(--accent-teal);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Main Content */
+        .admin-main {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            background: var(--bg-primary);
+            min-height: 100vh;
+            transition: background 0.2s ease;
+        }
+        
+        .admin-header {
+            height: var(--header-height);
+            background: var(--bg-secondary);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        
+        .header-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .admin-content {
+            padding: 2rem;
+        }
+        
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .kpi-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        
+        /* Light mode shadow for cards */
+        html:not(.dark) .kpi-card {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+        }
+        
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+        
+        .kpi-card.coral::before { background: linear-gradient(90deg, var(--accent-coral), #ff8e53); }
+        .kpi-card.teal::before { background: linear-gradient(90deg, var(--accent-teal), #45b7aa); }
+        .kpi-card.gold::before { background: linear-gradient(90deg, var(--accent-gold), #ffd93d); }
+        .kpi-card.purple::before { background: linear-gradient(90deg, var(--accent-purple), #c084fc); }
+        
+        .kpi-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+        
+        .kpi-card.coral .kpi-icon { background: rgba(255, 107, 107, 0.15); color: var(--accent-coral); }
+        .kpi-card.teal .kpi-icon { background: rgba(78, 205, 196, 0.15); color: var(--accent-teal); }
+        .kpi-card.gold .kpi-icon { background: rgba(255, 230, 109, 0.15); color: var(--accent-gold); }
+        .kpi-card.purple .kpi-icon { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+        
+        .kpi-icon i {
+            font-size: 1.5rem;
+        }
+        
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .kpi-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        
+        /* Charts Section */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        @media (max-width: 1200px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .chart-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        
+        html:not(.dark) .chart-card {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 250px;
+            width: 100%;
+        }
+        
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+        
+        .chart-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        /* Tables */
+        .data-table-container {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        
+        html:not(.dark) .data-table-container {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+        }
+        
+        .table-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .table-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .table-title .badge {
+            background: rgba(78, 205, 196, 0.15);
+            color: var(--accent-teal);
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .data-table thead {
+            background: var(--bg-tertiary);
+        }
+        
+        .data-table th {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+        
+        .data-table td {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .data-table tbody tr:hover {
+            background: var(--table-hover);
+        }
+        
+        /* Status Badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-badge.ready { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+        .status-badge.processing { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+        .status-badge.error { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+        .status-badge.pending { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+        
+        .status-badge i {
+            font-size: 0.6rem;
+        }
+        
+        /* Action Buttons */
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            background: transparent;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+        
+        .action-btn.transcribe {
+            color: var(--accent-teal);
+        }
+        
+        .action-btn.transcribe:hover {
+            background: rgba(78, 205, 196, 0.15);
+        }
+        
+        .action-btn.delete {
+            color: var(--accent-coral);
+        }
+        
+        .action-btn.delete:hover {
+            background: rgba(255, 107, 107, 0.15);
+        }
+        
+        /* Forms */
+        .form-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        
+        html:not(.dark) .form-card {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+        }
+        
+        .form-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            align-items: end;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.1);
+        }
+        
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-teal) 0%, #45b7aa 100%);
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(78, 205, 196, 0.3);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--accent-coral) 0%, #ff8e53 100%);
+            color: #fff;
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+        
+        /* Danger Zone */
+        .danger-zone {
+            background: linear-gradient(145deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.02) 100%);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 16px;
+            padding: 1.5rem;
+        }
+        
+        .danger-zone-title {
+            color: var(--accent-coral);
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .danger-zone-desc {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 450px;
+            transform: scale(0.9);
+            transition: transform 0.3s ease, background 0.2s ease;
+        }
+        
+        html:not(.dark) .modal {
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+        
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+        
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: none;
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-close:hover {
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+        
+        .modal-body {
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-footer {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+        
+        /* Top Users List */
+        .top-users-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .top-user-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            transition: background 0.2s ease;
+        }
+        
+        .top-user-rank {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .top-user-rank.gold { background: linear-gradient(135deg, #FFD700, #FFA500); color: #000; }
+        .top-user-rank.silver { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); color: #000; }
+        .top-user-rank.bronze { background: linear-gradient(135deg, #CD7F32, #B87333); color: #fff; }
+        .top-user-rank.default { background: var(--input-bg); color: var(--text-muted); }
+        
+        .top-user-name {
+            flex: 1;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .top-user-count {
+            font-size: 0.85rem;
+            color: var(--accent-teal);
+            font-weight: 600;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .admin-sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .admin-sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .admin-main {
+                margin-left: 0;
+            }
+            
+            .kpi-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        /* Alert Messages */
+        .alert {
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+        
+        .alert-success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: #86efac;
+        }
+    </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
 
-    <nav class="bg-gray-800 shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16 items-center">
-                <div class="flex items-center">
-                    <a href="/" class="text-2xl font-bold text-red-500 hover:text-red-400 transition">Youtube2Podcast</a>
-                    <span class="ml-4 text-gray-400 text-sm">/ Admin Panel</span>
+<div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+        <div class="sidebar-brand">
+            <img src="/icons/logo.png" alt="Youtube2Podcast">
+            <span>Y2P Admin</span>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Principal</div>
+                <a href="#" class="nav-item active" data-tab="dashboard">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="episodes">
+                    <i class="bi bi-collection-play-fill"></i>
+                    <span>Episodios</span>
+                </a>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-section-title">Administración</div>
+                <a href="#" class="nav-item" data-tab="users">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Usuarios</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="danger">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>Zona de Peligro</span>
+                </a>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-section-title">Navegación</div>
+                <a href="/" class="nav-item">
+                    <i class="bi bi-house-fill"></i>
+                    <span>Volver al Inicio</span>
+                </a>
+            </div>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar"><%= user.username.charAt(0).toUpperCase() %></div>
+                <div class="user-details">
+                    <div class="user-name"><%= user.username %></div>
+                    <div class="user-role"><%= user.role %></div>
                 </div>
-                <div class="flex items-center">
-                    <a href="/logout" class="text-gray-400 hover:text-white">Salir</a>
-                </div>
+                <a href="/logout" title="Cerrar sesión" style="color: rgba(255,255,255,0.5);">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
             </div>
         </div>
-    </nav>
-
-    <main class="flex-grow container mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="admin-main">
+        <header class="admin-header">
+            <h1 class="header-title" id="header-title">Dashboard</h1>
+            <div class="header-actions">
+                <button id="theme-toggle-btn" title="Cambiar tema" style="background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.7);">
+                    <i id="theme-icon-dark" class="bi bi-moon-fill text-xl"></i>
+                    <i id="theme-icon-light" class="bi bi-sun-fill text-xl hidden" style="color: #eab308;"></i>
+                </button>
+            </div>
+        </header>
         
-        <!-- User Management -->
-        <div class="space-y-8">
-            <div class="admin-section">
-                <h2 class="text-xl font-bold mb-6 text-white border-b border-gray-700 pb-2">Usuarios</h2>
-                
-                <% if (typeof error !== 'undefined' && error) { %>
-                    <div class="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-6 text-sm">
-                        <%= error %>
+        <div class="admin-content">
+            <% if (typeof error !== 'undefined' && error) { %>
+                <div class="alert alert-error">
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                    <%= error %>
+                </div>
+            <% } %>
+            
+            <!-- Dashboard Tab -->
+            <div id="tab-dashboard" class="tab-content active">
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card coral">
+                        <div class="kpi-icon"><i class="bi bi-collection-play"></i></div>
+                        <div class="kpi-value"><%= stats.totalEpisodes %></div>
+                        <div class="kpi-label">Total Episodios</div>
                     </div>
-                <% } %>
+                    <div class="kpi-card teal">
+                        <div class="kpi-icon"><i class="bi bi-people"></i></div>
+                        <div class="kpi-value"><%= stats.totalUsers %></div>
+                        <div class="kpi-label">Usuarios Registrados</div>
+                    </div>
+                    <div class="kpi-card gold">
+                        <div class="kpi-icon"><i class="bi bi-hdd"></i></div>
+                        <div class="kpi-value"><%= (stats.diskUsage / (1024 * 1024)).toFixed(1) %> MB</div>
+                        <div class="kpi-label">Uso de Disco</div>
+                    </div>
+                    <div class="kpi-card purple">
+                        <div class="kpi-icon"><i class="bi bi-check-circle"></i></div>
+                        <div class="kpi-value"><%= stats.statusDistribution.find(s => s.status === 'ready')?.count || 0 %></div>
+                        <div class="kpi-label">Episodios Listos</div>
+                    </div>
+                </div>
                 
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Episodios Creados (Últimos 7 días)</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="episodesChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 class="chart-title">Top Usuarios</h3>
+                        </div>
+                        <div class="top-users-list">
+                            <% stats.topUsers.forEach((u, i) => { %>
+                                <div class="top-user-item">
+                                    <div class="top-user-rank <%= i === 0 ? 'gold' : (i === 1 ? 'silver' : (i === 2 ? 'bronze' : 'default')) %>">
+                                        <%= i + 1 %>
+                                    </div>
+                                    <div class="top-user-name"><%= u.username %></div>
+                                    <div class="top-user-count"><%= u.episode_count %> eps</div>
+                                </div>
+                            <% }); %>
+                            <% if (stats.topUsers.length === 0) { %>
+                                <div style="color: rgba(255,255,255,0.4); text-align: center; padding: 2rem;">
+                                    Sin datos disponibles
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Activity -->
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <h3 class="table-title">
+                            Actividad Reciente
+                            <span class="badge"><%= stats.recentActivity.length %> últimos</span>
+                        </h3>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Usuario</th>
+                                <th>Estado</th>
+                                <th>Transcripción</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% stats.recentActivity.forEach(ep => { %>
+                                <tr>
+                                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<%= ep.title %>">
+                                        <%= ep.title || 'Sin título' %>
+                                    </td>
+                                    <td><%= ep.username || 'N/A' %></td>
+                                    <td>
+                                        <span class="status-badge <%= ep.status %>">
+                                            <i class="bi bi-circle-fill"></i>
+                                            <%= ep.status === 'ready' ? 'Listo' : (ep.status === 'error' ? 'Error' : 'Procesando') %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <% if (ep.transcription_status === 'ready') { %>
+                                            <span class="status-badge ready"><i class="bi bi-circle-fill"></i> Listo</span>
+                                        <% } else if (ep.transcription_status === 'processing') { %>
+                                            <span class="status-badge processing"><i class="bi bi-circle-fill"></i> Procesando</span>
+                                        <% } else if (ep.transcription_status === 'error') { %>
+                                            <span class="status-badge error"><i class="bi bi-circle-fill"></i> Error</span>
+                                        <% } else { %>
+                                            <span class="status-badge pending"><i class="bi bi-circle-fill"></i> Pendiente</span>
+                                        <% } %>
+                                    </td>
+                                    <td style="color: rgba(255,255,255,0.5);"><%= new Date(ep.created_at).toLocaleDateString() %></td>
+                                </tr>
+                            <% }); %>
+                            <% if (stats.recentActivity.length === 0) { %>
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: rgba(255,255,255,0.4); padding: 2rem;">
+                                        No hay actividad reciente
+                                    </td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Episodes Tab -->
+            <div id="tab-episodes" class="tab-content">
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <h3 class="table-title">
+                            Todos los Episodios
+                            <span class="badge"><%= episodes.length %> total</span>
+                        </h3>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Usuario</th>
+                                <th>Estado</th>
+                                <th>Traducción</th>
+                                <th>Transcripción</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% episodes.forEach(ep => { %>
+                                <tr data-episode-id="<%= ep.id %>">
+                                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<%= ep.title %>">
+                                        <%= ep.title || 'Sin título' %>
+                                    </td>
+                                    <td><%= ep.owner_username || 'N/A' %></td>
+                                    <td>
+                                        <span class="status-badge <%= ep.status %>">
+                                            <i class="bi bi-circle-fill"></i>
+                                            <%= ep.status === 'ready' ? 'Listo' : (ep.status === 'error' ? 'Error' : 'Procesando') %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <% if (ep.translation_status === 'ready') { %>
+                                            <span class="status-badge ready"><i class="bi bi-circle-fill"></i> ES</span>
+                                        <% } else if (ep.translation_status === 'processing') { %>
+                                            <span class="status-badge processing"><i class="bi bi-circle-fill"></i> ...</span>
+                                        <% } else if (ep.translation_status === 'error') { %>
+                                            <span class="status-badge error"><i class="bi bi-circle-fill"></i> Error</span>
+                                        <% } else { %>
+                                            <span style="color: rgba(255,255,255,0.3);">-</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <% if (ep.transcription_status === 'ready') { %>
+                                            <span class="status-badge ready"><i class="bi bi-circle-fill"></i> Listo</span>
+                                        <% } else if (ep.transcription_status === 'processing') { %>
+                                            <span class="status-badge processing"><i class="bi bi-circle-fill"></i> ...</span>
+                                        <% } else if (ep.transcription_status === 'error') { %>
+                                            <span class="status-badge error"><i class="bi bi-circle-fill"></i> Error</span>
+                                        <% } else { %>
+                                            <span style="color: rgba(255,255,255,0.3);">-</span>
+                                        <% } %>
+                                    </td>
+                                    <td style="color: rgba(255,255,255,0.5);"><%= new Date(ep.created_at).toLocaleDateString() %></td>
+                                    <td>
+                                        <div style="display: flex; gap: 0.5rem;">
+                                            <% if (ep.status === 'ready') { %>
+                                                <button type="button" class="action-btn transcribe" title="Regenerar Transcripción" onclick="openTranscribeModal(<%= ep.id %>, '<%= ep.title.replace(/'/g, "\\'") %>')">
+                                                    <i class="bi bi-file-earmark-text"></i>
+                                                </button>
+                                            <% } %>
+                                            <form action="/delete" method="POST" style="display: inline;" onsubmit="return confirm('¿Eliminar este podcast?');">
+                                                <input type="hidden" name="ids" value="<%= ep.id %>">
+                                                <button type="submit" class="action-btn delete" title="Eliminar">
+                                                    <i class="bi bi-trash3"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                            <% if (episodes.length === 0) { %>
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: rgba(255,255,255,0.4); padding: 2rem;">
+                                        No hay episodios registrados
+                                    </td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Users Tab -->
+            <div id="tab-users" class="tab-content">
                 <!-- Add User Form -->
-                <form action="/admin/users/add" method="POST" class="mb-8 bg-gray-900 p-8 sm:p-10 rounded-lg border border-gray-700 shadow-inner">
-                    <h3 class="text-sm font-bold text-gray-400 mb-6 uppercase tracking-wide border-b border-gray-800 pb-2">Crear Nuevo Usuario</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-                        <div class="w-full">
-                            <label class="block text-xs text-gray-500 mb-2 uppercase font-bold tracking-wider">Usuario</label>
-                            <input type="text" name="username" placeholder="Ej. pepe" required 
-                                class="px-4 py-2 rounded bg-gray-800 border border-gray-700 text-white focus:border-red-500 outline-none w-full transition h-12 text-sm focus:ring-1 focus:ring-red-500/50">
+                <div class="form-card">
+                    <h3 class="form-title">Crear Nuevo Usuario</h3>
+                    <form action="/admin/users/add" method="POST">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Usuario</label>
+                                <input type="text" name="username" placeholder="Ej. pepe" required class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label>Contraseña</label>
+                                <input type="password" name="password" placeholder="******" required class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label>Rol</label>
+                                <select name="role" class="form-input">
+                                    <option value="user">User</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                                    <i class="bi bi-plus-lg"></i> Crear Usuario
+                                </button>
+                            </div>
                         </div>
-                        <div class="w-full">
-                            <label class="block text-xs text-gray-500 mb-2 uppercase font-bold tracking-wider">Contraseña</label>
-                            <input type="password" name="password" placeholder="******" required 
-                                class="px-4 py-2 rounded bg-gray-800 border border-gray-700 text-white focus:border-red-500 outline-none w-full transition h-12 text-sm focus:ring-1 focus:ring-red-500/50">
-                        </div>
-                        <div class="w-full">
-                            <label class="block text-xs text-gray-500 mb-2 uppercase font-bold tracking-wider">Rol</label>
-                            <select name="role" class="px-4 py-2 rounded bg-gray-800 border border-gray-700 text-white focus:border-red-500 outline-none w-full transition h-12 text-sm focus:ring-1 focus:ring-red-500/50">
-                                <option value="user">User</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                        </div>
-                        <div class="w-full">
-                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition w-full font-bold shadow-lg h-12 text-sm uppercase tracking-wider transform hover:translate-y-[-1px]">
-                                Crear
-                            </button>
-                        </div>
+                    </form>
+                </div>
+                
+                <!-- Users Table -->
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <h3 class="table-title">
+                            Usuarios Registrados
+                            <span class="badge"><%= users.length %> total</span>
+                        </h3>
                     </div>
-                </form>
-
-                <!-- User List -->
-                <div class="admin-table-container">
-                    <table class="admin-table">
+                    <table class="data-table">
                         <thead>
                             <tr>
                                 <th>Usuario</th>
                                 <th>Rol</th>
-                                <th>Nueva Pass</th>
+                                <th>Nueva Contraseña</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -80,33 +1110,31 @@
                             <% users.forEach(u => { %>
                                 <tr>
                                     <form action="/admin/users/update/<%= u.id %>" method="POST">
-                                        <td class="px-4 py-3">
-                                            <input type="text" name="username" value="<%= u.username %>" class="inline-input" required>
+                                        <td>
+                                            <input type="text" name="username" value="<%= u.username %>" class="form-input" required style="max-width: 200px;">
                                         </td>
-                                        <td class="px-4 py-3">
-                                            <select name="role" class="inline-input">
+                                        <td>
+                                            <select name="role" class="form-input" style="max-width: 120px;">
                                                 <option value="user" <%= u.role === 'user' ? 'selected' : '' %>>User</option>
                                                 <option value="admin" <%= u.role === 'admin' ? 'selected' : '' %>>Admin</option>
                                             </select>
                                         </td>
-                                        <td class="px-4 py-3">
-                                            <input type="password" name="password" placeholder="Nueva..." class="inline-input text-gray-500 focus:text-white placeholder-gray-600">
+                                        <td>
+                                            <input type="password" name="password" placeholder="Dejar vacío para no cambiar" class="form-input" style="max-width: 200px;">
                                         </td>
-                                        <td class="px-4 py-3 flex items-center gap-2">
-                                            <button type="submit" class="text-blue-400 hover:text-blue-300 transition" title="Guardar cambios">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                            </button>
-                                            
-                                            <% if (u.username !== 'admin' && u.id !== user.id) { %>
-                                                <!-- Separate form for delete to avoid nesting issues -->
-                                                <button type="button" onclick="if(confirm('¿Eliminar <%= u.username %>?')) document.getElementById('delete-form-<%= u.id %>').submit();" class="text-red-400 hover:text-red-300 transition" title="Eliminar">
-                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        <td>
+                                            <div style="display: flex; gap: 0.5rem;">
+                                                <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+                                                    <i class="bi bi-check-lg"></i>
                                                 </button>
-                                            <% } %>
+                                                <% if (u.username !== 'admin' && u.id !== user.id) { %>
+                                                    <button type="button" class="btn btn-danger" style="padding: 0.5rem 1rem;" onclick="if(confirm('¿Eliminar <%= u.username %>?')) document.getElementById('delete-form-<%= u.id %>').submit();">
+                                                        <i class="bi bi-trash3"></i>
+                                                    </button>
+                                                <% } %>
+                                            </div>
                                         </td>
                                     </form>
-                                    
-                                    <!-- Hidden Delete Form -->
                                     <form id="delete-form-<%= u.id %>" action="/admin/users/delete/<%= u.id %>" method="POST" style="display:none;"></form>
                                 </tr>
                             <% }); %>
@@ -114,29 +1142,267 @@
                     </table>
                 </div>
             </div>
-        </div>
-
-        <!-- Danger Zone -->
-        <div>
-            <div class="admin-section border-red-900/30 bg-gray-800/50 sticky top-8">
-                <h2 class="text-2xl font-bold mb-6 text-white border-b border-gray-700 pb-2">Zona de Peligro</h2>
-                
-                <p class="text-gray-400 mb-8">
-                    Estas acciones son irreversibles y afectarán a todos los usuarios.
-                </p>
-
-                <div class="space-y-4">
-                    <form action="/api/clear-all" method="POST" onsubmit="return confirm('¿ESTÁS TOTALMENTE SEGURO? Se borrarán TODOS los episodios y archivos descargados.');">
-                        <button type="submit" class="w-full bg-red-900 hover:bg-red-800 text-red-100 font-bold py-4 px-6 rounded-lg transition duration-300 flex items-center justify-center gap-3 border border-red-800 shadow-lg">
-                            <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            Eliminar TODOS los Podcasts
+            
+            <!-- Danger Zone Tab -->
+            <div id="tab-danger" class="tab-content">
+                <div class="danger-zone">
+                    <h3 class="danger-zone-title">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        Zona de Peligro
+                    </h3>
+                    <p class="danger-zone-desc">
+                        Estas acciones son <strong>irreversibles</strong> y afectarán a todos los usuarios del sistema.
+                    </p>
+                    
+                    <form action="/api/clear-all" method="POST" onsubmit="return confirm('¿ESTÁS TOTALMENTE SEGURO? Se borrarán TODOS los episodios y archivos descargados. Esta acción NO se puede deshacer.');">
+                        <button type="submit" class="btn btn-danger" style="width: 100%;">
+                            <i class="bi bi-trash3-fill"></i>
+                            Eliminar TODOS los Podcasts y Archivos
                         </button>
                     </form>
                 </div>
             </div>
         </div>
-
     </main>
+</div>
 
+<!-- Transcription Modal -->
+<div id="transcribe-modal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Regenerar Transcripción</h3>
+            <button type="button" class="modal-close" onclick="closeTranscribeModal()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p style="color: rgba(255,255,255,0.6); margin-bottom: 1rem; font-size: 0.9rem;">
+                Episodio: <strong id="modal-episode-title" style="color: #fff;"></strong>
+            </p>
+            <p style="color: rgba(255,255,255,0.5); margin-bottom: 1.5rem; font-size: 0.85rem;">
+                <i class="bi bi-info-circle"></i> Esto reemplazará la transcripción existente (si hay una).
+            </p>
+            <div class="form-group">
+                <label>Seleccionar Idioma</label>
+                <select id="modal-language" class="form-input">
+                    <% Object.entries(supportedLanguages).forEach(([code, name]) => { %>
+                        <option value="<%= code %>"><%= name %></option>
+                    <% }); %>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeTranscribeModal()">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="modal-confirm-btn">
+                <i class="bi bi-play-fill"></i> Iniciar Transcripción
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Tab Navigation
+    const navItems = document.querySelectorAll('.nav-item[data-tab]');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const headerTitle = document.getElementById('header-title');
+    
+    const tabTitles = {
+        'dashboard': 'Dashboard',
+        'episodes': 'Gestión de Episodios',
+        'users': 'Gestión de Usuarios',
+        'danger': 'Zona de Peligro'
+    };
+    
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tab = item.dataset.tab;
+            
+            // Update nav active state
+            navItems.forEach(n => n.classList.remove('active'));
+            item.classList.add('active');
+            
+            // Show corresponding tab content
+            tabContents.forEach(t => t.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            
+            // Update header title
+            headerTitle.textContent = tabTitles[tab] || 'Dashboard';
+        });
+    });
+    
+    // Theme Toggle
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const themeIconDark = document.getElementById('theme-icon-dark');
+    const themeIconLight = document.getElementById('theme-icon-light');
+
+    function updateThemeIcons() {
+        const isDark = document.documentElement.classList.contains('dark');
+        if (isDark) {
+            themeIconDark.classList.remove('hidden');
+            themeIconLight.classList.add('hidden');
+        } else {
+            themeIconDark.classList.add('hidden');
+            themeIconLight.classList.remove('hidden');
+        }
+    }
+
+    updateThemeIcons();
+
+    themeToggleBtn.addEventListener('click', () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        updateThemeIcons();
+        // Update chart colors
+        if (typeof updateChartTheme === 'function') {
+            updateChartTheme();
+        }
+    });
+    
+    // Transcription Modal
+    let currentEpisodeId = null;
+    
+    function openTranscribeModal(episodeId, title) {
+        currentEpisodeId = episodeId;
+        document.getElementById('modal-episode-title').textContent = title;
+        document.getElementById('transcribe-modal').classList.add('active');
+    }
+    
+    function closeTranscribeModal() {
+        document.getElementById('transcribe-modal').classList.remove('active');
+        currentEpisodeId = null;
+    }
+    
+    document.getElementById('modal-confirm-btn').addEventListener('click', async () => {
+        if (!currentEpisodeId) return;
+        
+        const language = document.getElementById('modal-language').value;
+        const btn = document.getElementById('modal-confirm-btn');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Iniciando...';
+        
+        try {
+            const response = await fetch(`/admin/episodes/${currentEpisodeId}/transcribe`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ language })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                closeTranscribeModal();
+                // Update the row status
+                const row = document.querySelector(`tr[data-episode-id="${currentEpisodeId}"]`);
+                if (row) {
+                    const transcriptionCell = row.querySelectorAll('td')[4];
+                    if (transcriptionCell) {
+                        transcriptionCell.innerHTML = '<span class="status-badge processing"><i class="bi bi-circle-fill"></i> ...</span>';
+                    }
+                }
+                alert(data.message);
+            } else {
+                alert('Error: ' + (data.error || 'Error desconocido'));
+            }
+        } catch (err) {
+            alert('Error de conexión: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-play-fill"></i> Iniciar Transcripción';
+        }
+    });
+    
+    // Close modal on overlay click
+    document.getElementById('transcribe-modal').addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal-overlay')) {
+            closeTranscribeModal();
+        }
+    });
+    
+    // Chart.js - Episodes per day
+    const episodesData = <%- JSON.stringify(stats.episodesPerDay) %>;
+    
+    // Generate last 7 days labels
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        last7Days.push(d.toISOString().split('T')[0]);
+    }
+    
+    // Map data to labels
+    const chartData = last7Days.map(date => {
+        const found = episodesData.find(d => d.date === date);
+        return found ? found.count : 0;
+    });
+    
+    const chartLabels = last7Days.map(date => {
+        const d = new Date(date);
+        return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
+    });
+    
+    const ctx = document.getElementById('episodesChart').getContext('2d');
+    
+    // Get theme-aware colors
+    const isDarkMode = () => document.documentElement.classList.contains('dark');
+    const getTickColor = () => isDarkMode() ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.5)';
+    const getGridColor = () => isDarkMode() ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)';
+    
+    const episodesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                label: 'Episodios',
+                data: chartData,
+                backgroundColor: 'rgba(78, 205, 196, 0.6)',
+                borderColor: 'rgba(78, 205, 196, 1)',
+                borderWidth: 1,
+                borderRadius: 6,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1,
+                        color: getTickColor()
+                    },
+                    grid: {
+                        color: getGridColor()
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: getTickColor()
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+    
+    // Update chart colors when theme changes
+    function updateChartTheme() {
+        episodesChart.options.scales.y.ticks.color = getTickColor();
+        episodesChart.options.scales.y.grid.color = getGridColor();
+        episodesChart.options.scales.x.ticks.color = getTickColor();
+        episodesChart.update();
+    }
+</script>
 </body>
 </html>

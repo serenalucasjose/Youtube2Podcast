@@ -50,6 +50,12 @@ if (!columnNames.includes('translation_status')) {
 if (!columnNames.includes('translated_file_path')) {
     db.exec("ALTER TABLE episodes ADD COLUMN translated_file_path TEXT");
 }
+if (!columnNames.includes('transcription_status')) {
+    db.exec("ALTER TABLE episodes ADD COLUMN transcription_status TEXT"); // null, 'processing', 'ready', 'error'
+}
+if (!columnNames.includes('transcription_file_path')) {
+    db.exec("ALTER TABLE episodes ADD COLUMN transcription_file_path TEXT");
+}
 
 // Create push subscriptions table
 db.exec(`
@@ -163,7 +169,13 @@ module.exports = {
     if (userId) {
         return db.prepare('SELECT * FROM episodes WHERE user_id = ? ORDER BY created_at DESC').all(userId);
     }
-    return db.prepare('SELECT * FROM episodes ORDER BY created_at DESC').all();
+    // For admin view, include username
+    return db.prepare(`
+        SELECT e.*, u.username as owner_username 
+        FROM episodes e 
+        LEFT JOIN users u ON e.user_id = u.id 
+        ORDER BY e.created_at DESC
+    `).all();
   },
   getEpisodeById: (id) => {
     return db.prepare('SELECT * FROM episodes WHERE id = ?').get(id);
@@ -185,7 +197,7 @@ module.exports = {
   getEpisodesByIds: (ids) => {
       if (!ids || ids.length === 0) return [];
       const placeholders = ids.map(() => '?').join(',');
-      return db.prepare(`SELECT id, youtube_id, status, file_path, user_id, translation_status, translated_file_path FROM episodes WHERE id IN (${placeholders})`).all(...ids);
+      return db.prepare(`SELECT id, youtube_id, status, file_path, user_id, translation_status, translated_file_path, transcription_status, transcription_file_path FROM episodes WHERE id IN (${placeholders})`).all(...ids);
   },
   // Translation status management
   updateTranslationStatus: (youtubeId, status, translatedFilePath = null) => {
@@ -200,6 +212,14 @@ module.exports = {
           return db.prepare('UPDATE episodes SET translation_status = ?, translated_file_path = ? WHERE id = ?').run(status, translatedFilePath, id);
       } else {
           return db.prepare('UPDATE episodes SET translation_status = ? WHERE id = ?').run(status, id);
+      }
+  },
+  // Transcription status management
+  updateTranscriptionStatusById: (id, status, transcriptionFilePath = null) => {
+      if (transcriptionFilePath) {
+          return db.prepare('UPDATE episodes SET transcription_status = ?, transcription_file_path = ? WHERE id = ?').run(status, transcriptionFilePath, id);
+      } else {
+          return db.prepare('UPDATE episodes SET transcription_status = ? WHERE id = ?').run(status, id);
       }
   },
 
@@ -221,5 +241,91 @@ module.exports = {
   },
   deletePushSubscription: (endpoint) => {
       return db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(endpoint);
+  },
+
+  // Admin Stats for Dashboard
+  getAdminStats: () => {
+      // Total counts
+      const totalEpisodes = db.prepare('SELECT COUNT(*) as count FROM episodes').get().count;
+      const totalUsers = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+      
+      // Status distribution
+      const statusDistribution = db.prepare(`
+          SELECT 
+              status,
+              COUNT(*) as count 
+          FROM episodes 
+          GROUP BY status
+      `).all();
+      
+      // Transcription status distribution
+      const transcriptionDistribution = db.prepare(`
+          SELECT 
+              transcription_status,
+              COUNT(*) as count 
+          FROM episodes 
+          WHERE transcription_status IS NOT NULL
+          GROUP BY transcription_status
+      `).all();
+      
+      // Translation status distribution
+      const translationDistribution = db.prepare(`
+          SELECT 
+              translation_status,
+              COUNT(*) as count 
+          FROM episodes 
+          WHERE translation_status IS NOT NULL
+          GROUP BY translation_status
+      `).all();
+      
+      // Episodes per day (last 7 days)
+      const episodesPerDay = db.prepare(`
+          SELECT 
+              DATE(created_at) as date,
+              COUNT(*) as count
+          FROM episodes
+          WHERE created_at >= DATE('now', '-7 days')
+          GROUP BY DATE(created_at)
+          ORDER BY date ASC
+      `).all();
+      
+      // Top users by episode count
+      const topUsers = db.prepare(`
+          SELECT 
+              u.username,
+              COUNT(e.id) as episode_count
+          FROM users u
+          LEFT JOIN episodes e ON u.id = e.user_id
+          GROUP BY u.id
+          ORDER BY episode_count DESC
+          LIMIT 5
+      `).all();
+      
+      // Recent activity (last 10 episodes)
+      const recentActivity = db.prepare(`
+          SELECT 
+              e.id,
+              e.title,
+              e.status,
+              e.transcription_status,
+              e.translation_status,
+              e.created_at,
+              u.username
+          FROM episodes e
+          LEFT JOIN users u ON e.user_id = u.id
+          ORDER BY e.created_at DESC
+          LIMIT 10
+      `).all();
+      
+      return {
+          totalEpisodes,
+          totalUsers,
+          statusDistribution,
+          transcriptionDistribution,
+          translationDistribution,
+          episodesPerDay,
+          topUsers,
+          recentActivity
+      };
   }
 };
