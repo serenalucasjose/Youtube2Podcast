@@ -782,10 +782,10 @@
 <div class="admin-layout">
     <!-- Sidebar -->
     <aside class="admin-sidebar">
-        <div class="sidebar-brand">
+        <a href="/" class="sidebar-brand" style="text-decoration: none;">
             <img src="/icons/logo.png" alt="Youtube2Podcast">
             <span>Y2P Admin</span>
-        </div>
+        </a>
         
         <nav class="sidebar-nav">
             <div class="nav-section">
@@ -840,7 +840,7 @@
         <header class="admin-header">
             <h1 class="header-title" id="header-title">Dashboard</h1>
             <div class="header-actions">
-                <button id="theme-toggle-btn" title="Cambiar tema" style="background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.7);">
+                <button id="theme-toggle-btn" title="Cambiar tema" aria-label="Cambiar tema" style="background: none; border: none; cursor: pointer; color: var(--text-secondary); padding: 0.5rem; border-radius: 0.5rem; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--bg-tertiary)'" onmouseout="this.style.backgroundColor='transparent'">
                     <i id="theme-icon-dark" class="bi bi-moon-fill text-xl"></i>
                     <i id="theme-icon-light" class="bi bi-sun-fill text-xl hidden" style="color: #eab308;"></i>
                 </button>
