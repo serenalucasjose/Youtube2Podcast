@@ -87,158 +87,8 @@
             </div>
         <% } else { %>
             <div id="episodesGrid">
-                <% episodes.forEach(episode => { 
-                    const isMp3 = episode.file_path && episode.file_path.endsWith('.mp3');
-                    const isProcessing = episode.status === 'processing';
-                    const isTranslating = episode.translation_status === 'processing';
-                %>
-                    <div class="episode-card group <%= isProcessing ? 'processing' : '' %> <%= isTranslating ? 'translating' : '' %>" data-youtube-id="<%= episode.youtube_id %>" data-episode-id="<%= episode.id %>">
-                        
-                        <!-- Checkbox (Left) -->
-                        <div class="card-checkbox-container">
-                            <input type="checkbox" name="ids" value="<%= episode.id %>" class="episode-checkbox">
-                        </div>
-
-                        <!-- Content (Middle) -->
-                        <div class="p-4">
-                            <div class="flex justify-between items-start">
-                                <h3 class="episode-title" title="<%= episode.title %>">
-                                    <%= episode.title %>
-                                </h3>
-                            </div>
-                            
-                            <div class="card-meta-row">
-                                <span class="card-date">
-                                    <%= new Date(episode.created_at).toLocaleDateString() %> • 
-                                    <span class="<%= episode.status === 'ready' ? 'text-green-500' : (episode.status === 'error' ? 'text-red-500' : 'text-yellow-500') %>">
-                                        <%= episode.status === 'ready' ? 'Listo' : (episode.status === 'error' ? 'Error' : 'Procesando') %>
-                                    </span>
-                                </span>
-                                
-                                <!-- Actions -->
-                                <div class="flex items-center gap-3">
-                                    <% if (episode.status === 'ready') { %>
-                                        <!-- Translation Actions -->
-                                        <% if (episode.translation_status === 'ready' && episode.translated_file_path) { %>
-                                            <!-- Download Translated -->
-                                            <a href="/download-translated/<%= episode.id %>" class="text-green-400 hover:text-green-300 transition" title="Descargar en Español">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
-                                                </svg>
-                                            </a>
-                                        <% } else if (episode.translation_status === 'processing') { %>
-                                            <!-- Translation Processing -->
-                                            <span class="text-yellow-400" title="Traduciendo...">
-                                                <svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
-                                                </svg>
-                                            </span>
-                                        <% } else if (episode.translation_status === 'error') { %>
-                                            <!-- Translation Error - Retry -->
-                                            <button type="button" onclick="startTranslation('<%= episode.id %>')" class="text-red-400 hover:text-red-300 transition" title="Error en traducción - Reintentar">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
-                                                </svg>
-                                            </button>
-                                        <% } else { %>
-                                            <!-- Start Translation -->
-                                            <button type="button" onclick="startTranslation('<%= episode.id %>')" class="text-gray-400 hover:text-yellow-400 transition" title="Traducir al Español">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path>
-                                                </svg>
-                                            </button>
-                                        <% } %>
-                                        
-                                        <!-- Open Native -->
-                                        <a href="/downloads/<%= episode.file_path %>" target="_blank" class="text-gray-400 hover:text-white transition" title="Abrir nativo">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                                        </a>
-                                        <!-- Download -->
-                                        <a href="/download/<%= episode.id %>" class="text-gray-400 hover:text-blue-400 transition" title="Descargar Original">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                        </a>
-                                    <% } else if (isProcessing) { %>
-                                        <!-- Processing Spinner icon -->
-                                        <svg class="w-5 h-5 text-gray-500 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                    <% } %>
-                                    
-                                    <!-- Delete Button -->
-                                    <button type="button" onclick="confirmDelete('<%= episode.id %>')" class="text-gray-400 hover:text-red-500 transition" title="Borrar">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Audio Player (Custom) - Original -->
-                            <% if (episode.status === 'ready' && isMp3) { %>
-                                <div class="custom-audio-player" data-src="/downloads/<%= episode.file_path %>">
-                                    <button class="audio-play-btn" type="button" aria-label="Play">
-                                        <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                                        <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                                    </button>
-                                    <div class="audio-progress-container">
-                                        <input type="range" class="audio-progress" value="0" min="0" max="100" step="0.1">
-                                        <div class="audio-progress-fill"></div>
-                                    </div>
-                                    <span class="audio-time">0:00</span>
-                                    <span class="audio-duration">/ 0:00</span>
-                                    <div class="audio-volume-container">
-                                        <button class="audio-volume-btn" type="button" aria-label="Volume">
-                                            <svg class="volume-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-                                            <svg class="mute-icon hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-                                        </button>
-                                        <input type="range" class="audio-volume" value="80" min="0" max="100">
-                                    </div>
-                                    <audio preload="none">
-                                        <source src="/downloads/<%= episode.file_path %>" type="audio/mpeg">
-                                    </audio>
-                                </div>
-                            <% } %>
-
-                            <!-- Audio Player (Custom) - Traducción Español -->
-                            <% if (episode.translation_status === 'ready' && episode.translated_file_path) { %>
-                                <div class="custom-audio-player translated-player" data-src="/downloads/<%= episode.translated_file_path %>">
-                                    <span class="audio-lang-badge">ES</span>
-                                    <button class="audio-play-btn" type="button" aria-label="Play Traducción">
-                                        <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                                        <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                                    </button>
-                                    <div class="audio-progress-container">
-                                        <input type="range" class="audio-progress" value="0" min="0" max="100" step="0.1">
-                                        <div class="audio-progress-fill"></div>
-                                    </div>
-                                    <span class="audio-time">0:00</span>
-                                    <span class="audio-duration">/ 0:00</span>
-                                    <div class="audio-volume-container">
-                                        <button class="audio-volume-btn" type="button" aria-label="Volume">
-                                            <svg class="volume-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-                                            <svg class="mute-icon hidden" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-                                        </button>
-                                        <input type="range" class="audio-volume" value="80" min="0" max="100">
-                                    </div>
-                                    <audio preload="none">
-                                        <source src="/downloads/<%= episode.translated_file_path %>" type="audio/wav">
-                                    </audio>
-                                </div>
-                            <% } %>
-                        </div>
-
-                        <!-- Thumbnail (Right) -->
-                        <div class="aspect-video">
-                            <% if (episode.status === 'ready') { %>
-                                <img src="<%= episode.thumbnail_url || '/images/placeholder.jpg' %>" loading="lazy">
-                            <% } else { %>
-                                <div class="w-full h-full flex items-center justify-center bg-gray-800">
-                                    <% if (episode.status === 'error') { %>
-                                        <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                    <% } else { %>
-                                        <img src="<%= episode.thumbnail_url || '/images/placeholder.jpg' %>" class="w-full h-full object-cover opacity-50">
-                                    <% } %>
-                                </div>
-                            <% } %>
-                        </div>
-
-                    </div>
+                <% episodes.forEach(episode => { %>
+                    <%- include('partials/episode_card', { episode }) %>
                 <% }); %>
             </div>
         <% } %>
@@ -350,16 +200,18 @@
             if (data.type === 'translation') {
                 console.log('Translation SSE event:', data);
                 if (data.translationStatus === 'ready') {
-                    console.log('Translation ready, reloading...');
-                    window.location.reload();
+                    console.log('Translation ready, updating card...');
+                    refreshEpisodeCard(data.episodeId);
                 } else if (data.translationStatus === 'error') {
-                    updateTranslationError(data.videoId);
+                    refreshEpisodeCard(data.episodeId);
                 } else if (data.translationStatus === 'processing') {
-                    updateTranslationProgress(data.videoId, data.stage, data.percent, data.message);
+                    updateTranslationProgress(data.episodeId, data.videoId, data.stage, data.percent, data.message);
                     // Mark card as translating if not already
                     const card = document.querySelector(`.episode-card[data-youtube-id="${data.videoId}"]`);
                     if (card && !card.classList.contains('translating')) {
                         card.classList.add('translating');
+                        // Añadir contenedor de logs si no existe
+                        ensureLogsContainer(card);
                     }
                 }
                 return;
@@ -367,7 +219,11 @@
 
             // Handle download events
             if (data.status === 'done') {
-                window.location.reload();
+                // Buscar el episodeId por videoId
+                const card = document.querySelector(`.episode-card[data-youtube-id="${data.videoId}"]`);
+                if (card) {
+                    refreshEpisodeCard(card.dataset.episodeId);
+                }
             } else if (data.status === 'error') {
                 updateCardToError(data.videoId);
             }
@@ -408,8 +264,8 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    // Reload to show processing state
-                    window.location.reload();
+                    // Actualizar tarjeta sin recargar página
+                    await refreshEpisodeCard(episodeId);
                 } else {
                     alert('Error: ' + (data.error || 'No se pudo iniciar la traducción'));
                 }
@@ -419,17 +275,119 @@
             }
         }
 
-        function updateTranslationProgress(videoId, stage, percent, message) {
+        function updateTranslationProgress(episodeId, videoId, stage, percent, message) {
             const card = document.querySelector(`.episode-card[data-youtube-id="${videoId}"]`);
             if (card) {
-                // Could add a progress indicator here if desired
                 console.log(`Translation progress [${videoId}]: ${stage} - ${percent}% - ${message}`);
+                
+                // Actualizar logs en la tarjeta
+                const logsContainer = card.querySelector('.translation-logs');
+                if (logsContainer) {
+                    const logLine = document.createElement('div');
+                    logLine.className = `log-line ${getLogColorClass(stage)}`;
+                    logLine.textContent = `[${stage}] ${percent}% - ${message}`;
+                    logsContainer.appendChild(logLine);
+                    
+                    // Mantener solo los últimos 10 logs para rendimiento
+                    const allLogs = logsContainer.querySelectorAll('.log-line');
+                    if (allLogs.length > 10) {
+                        allLogs[0].remove();
+                    }
+                }
             }
         }
-
-        function updateTranslationError(videoId) {
-            // Reload to show error state with retry button
-            window.location.reload();
+        
+        function getLogColorClass(stage) {
+            if (stage === 'error') return 'text-red-400';
+            if (stage === 'done') return 'text-green-400';
+            if (stage === 'stt') return 'text-blue-400';
+            if (stage === 'translation') return 'text-purple-400';
+            if (stage === 'tts') return 'text-cyan-400';
+            return 'text-gray-300';
+        }
+        
+        function ensureLogsContainer(card) {
+            if (!card.querySelector('.translation-logs-container')) {
+                const contentDiv = card.querySelector('.p-4');
+                if (contentDiv) {
+                    const logsHtml = `
+                        <div class="translation-logs-container mt-3 p-2 bg-gray-800 rounded border border-gray-700 h-16 overflow-hidden text-xs font-mono relative">
+                            <div class="logs-fade-top"></div>
+                            <div class="translation-logs text-gray-400">
+                                <div class="log-line text-yellow-400">Iniciando traducción...</div>
+                            </div>
+                            <div class="logs-fade-bottom"></div>
+                        </div>
+                    `;
+                    contentDiv.insertAdjacentHTML('beforeend', logsHtml);
+                }
+            }
+        }
+        
+        // Función para refrescar una tarjeta de episodio via AJAX
+        async function refreshEpisodeCard(episodeId) {
+            try {
+                const response = await fetch(`/api/episode/${episodeId}/card`);
+                if (!response.ok) {
+                    console.error('Error fetching episode card:', response.status);
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                // Encontrar la tarjeta actual y reemplazarla
+                const currentCard = document.querySelector(`.episode-card[data-episode-id="${episodeId}"]`);
+                if (currentCard && data.html) {
+                    // Crear un contenedor temporal para parsear el HTML
+                    const temp = document.createElement('div');
+                    temp.innerHTML = data.html.trim();
+                    const newCard = temp.firstElementChild;
+                    
+                    // Reemplazar la tarjeta
+                    currentCard.replaceWith(newCard);
+                    
+                    // Re-inicializar reproductores de audio en la nueva tarjeta
+                    initAudioPlayersInElement(newCard);
+                    
+                    // Re-attach checkbox listener
+                    const checkbox = newCard.querySelector('.episode-checkbox[name="ids"]');
+                    if (checkbox) {
+                        checkbox.addEventListener('change', updateBulkUI);
+                    }
+                }
+            } catch (err) {
+                console.error('Error refreshing episode card:', err);
+            }
+        }
+        
+        // Función para obtener y mostrar logs de traducción
+        async function fetchAndDisplayLogs(episodeId) {
+            try {
+                const response = await fetch(`/api/episode/${episodeId}/logs`);
+                if (!response.ok) return;
+                
+                const data = await response.json();
+                const card = document.querySelector(`.episode-card[data-episode-id="${episodeId}"]`);
+                
+                if (card && data.logs && data.logs.length > 0) {
+                    const logsContainer = card.querySelector('.translation-logs');
+                    if (logsContainer) {
+                        // Solo mostrar los últimos 10 logs
+                        const recentLogs = data.logs.slice(-10);
+                        logsContainer.innerHTML = recentLogs.map(log => 
+                            `<div class="log-line ${getLogColorClass(log.type)}">${escapeHtml(log.message)}</div>`
+                        ).join('');
+                    }
+                }
+            } catch (err) {
+                console.warn('Error fetching logs:', err);
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // Polling fallback for state sync (runs every 10s if there are processing items)
@@ -454,30 +412,38 @@
                 if (!response.ok) return;
                 
                 const data = await response.json();
-                let shouldReload = false;
                 
-                data.episodes.forEach(ep => {
-                    if (ep.status === 'ready') {
-                        shouldReload = true;
-                    } else if (ep.status === 'error') {
-                        updateCardToError(ep.youtube_id);
+                for (const ep of data.episodes) {
+                    const card = document.querySelector(`.episode-card[data-episode-id="${ep.id}"]`);
+                    if (!card) continue;
+                    
+                    const wasProcessing = card.classList.contains('processing');
+                    const wasTranslating = card.classList.contains('translating');
+                    
+                    // Si cambió el estado de descarga
+                    if (wasProcessing && (ep.status === 'ready' || ep.status === 'error')) {
+                        await refreshEpisodeCard(ep.id);
+                        continue;
                     }
-                    // Check translation status changes
-                    if (ep.translation_status === 'ready' || ep.translation_status === 'error') {
-                        shouldReload = true;
+                    
+                    // Si cambió el estado de traducción
+                    if (wasTranslating && (ep.translation_status === 'ready' || ep.translation_status === 'error')) {
+                        await refreshEpisodeCard(ep.id);
+                        continue;
                     }
-                });
-
-                if (shouldReload) {
-                    window.location.reload();
+                    
+                    // Si sigue traduciendo, actualizar logs
+                    if (ep.translation_status === 'processing') {
+                        await fetchAndDisplayLogs(ep.id);
+                    }
                 }
             } catch (err) {
                 console.warn('Polling failed:', err);
             }
         }
 
-        // Start polling interval (every 10 seconds)
-        setInterval(pollTaskStatus, 10000);
+        // Start polling interval (every 5 seconds for better UX)
+        setInterval(pollTaskStatus, 5000);
         // Also poll once on page load after a short delay (catch immediate state changes)
         setTimeout(pollTaskStatus, 2000);
 
@@ -520,112 +486,129 @@
             const secs = Math.floor(seconds % 60);
             return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
+        
+        // Inicializar reproductores dentro de un elemento específico
+        function initAudioPlayersInElement(element) {
+            element.querySelectorAll('.custom-audio-player').forEach(player => {
+                initSingleAudioPlayer(player);
+            });
+        }
+        
+        function initSingleAudioPlayer(player) {
+            // Evitar re-inicialización
+            if (player.dataset.initialized) return;
+            player.dataset.initialized = 'true';
+            
+            const audio = player.querySelector('audio');
+            const playBtn = player.querySelector('.audio-play-btn');
+            const playIcon = player.querySelector('.play-icon');
+            const pauseIcon = player.querySelector('.pause-icon');
+            const progressBar = player.querySelector('.audio-progress');
+            const progressFill = player.querySelector('.audio-progress-fill');
+            const timeDisplay = player.querySelector('.audio-time');
+            const durationDisplay = player.querySelector('.audio-duration');
+            const volumeBtn = player.querySelector('.audio-volume-btn');
+            const volumeSlider = player.querySelector('.audio-volume');
+            const volumeIcon = player.querySelector('.volume-icon');
+            const muteIcon = player.querySelector('.mute-icon');
 
-        function initAudioPlayers() {
-            document.querySelectorAll('.custom-audio-player').forEach(player => {
-                const audio = player.querySelector('audio');
-                const playBtn = player.querySelector('.audio-play-btn');
-                const playIcon = player.querySelector('.play-icon');
-                const pauseIcon = player.querySelector('.pause-icon');
-                const progressBar = player.querySelector('.audio-progress');
-                const progressFill = player.querySelector('.audio-progress-fill');
-                const timeDisplay = player.querySelector('.audio-time');
-                const durationDisplay = player.querySelector('.audio-duration');
-                const volumeBtn = player.querySelector('.audio-volume-btn');
-                const volumeSlider = player.querySelector('.audio-volume');
-                const volumeIcon = player.querySelector('.volume-icon');
-                const muteIcon = player.querySelector('.mute-icon');
+            if (!audio || !playBtn) return;
 
-                let lastVolume = 0.8;
+            let lastVolume = 0.8;
 
-                // Play/Pause
-                playBtn.addEventListener('click', () => {
-                    // Pause all other players first
-                    document.querySelectorAll('.custom-audio-player audio').forEach(a => {
-                        if (a !== audio && !a.paused) {
-                            a.pause();
-                            const otherPlayer = a.closest('.custom-audio-player');
-                            otherPlayer.classList.remove('playing');
-                            otherPlayer.querySelector('.play-icon').classList.remove('hidden');
-                            otherPlayer.querySelector('.pause-icon').classList.add('hidden');
-                        }
-                    });
-
-                    if (audio.paused) {
-                        audio.play();
-                        player.classList.add('playing');
-                        playIcon.classList.add('hidden');
-                        pauseIcon.classList.remove('hidden');
-                    } else {
-                        audio.pause();
-                        player.classList.remove('playing');
-                        playIcon.classList.remove('hidden');
-                        pauseIcon.classList.add('hidden');
+            // Play/Pause
+            playBtn.addEventListener('click', () => {
+                // Pause all other players first
+                document.querySelectorAll('.custom-audio-player audio').forEach(a => {
+                    if (a !== audio && !a.paused) {
+                        a.pause();
+                        const otherPlayer = a.closest('.custom-audio-player');
+                        otherPlayer.classList.remove('playing');
+                        otherPlayer.querySelector('.play-icon').classList.remove('hidden');
+                        otherPlayer.querySelector('.pause-icon').classList.add('hidden');
                     }
                 });
 
-                // Update progress
-                audio.addEventListener('timeupdate', () => {
-                    const percent = (audio.currentTime / audio.duration) * 100 || 0;
-                    progressFill.style.width = percent + '%';
-                    progressBar.value = percent;
-                    timeDisplay.textContent = formatTime(audio.currentTime);
-                });
-
-                // Duration loaded
-                audio.addEventListener('loadedmetadata', () => {
-                    durationDisplay.textContent = '/ ' + formatTime(audio.duration);
-                });
-
-                // Seek
-                progressBar.addEventListener('input', (e) => {
-                    const percent = e.target.value;
-                    audio.currentTime = (percent / 100) * audio.duration;
-                    progressFill.style.width = percent + '%';
-                });
-
-                // Volume
-                volumeSlider.addEventListener('input', (e) => {
-                    const vol = e.target.value / 100;
-                    audio.volume = vol;
-                    lastVolume = vol > 0 ? vol : lastVolume;
-                    updateVolumeIcon(vol);
-                });
-
-                // Mute toggle
-                volumeBtn.addEventListener('click', () => {
-                    if (audio.volume > 0) {
-                        lastVolume = audio.volume;
-                        audio.volume = 0;
-                        volumeSlider.value = 0;
-                    } else {
-                        audio.volume = lastVolume;
-                        volumeSlider.value = lastVolume * 100;
-                    }
-                    updateVolumeIcon(audio.volume);
-                });
-
-                function updateVolumeIcon(vol) {
-                    if (vol === 0) {
-                        volumeIcon.classList.add('hidden');
-                        muteIcon.classList.remove('hidden');
-                    } else {
-                        volumeIcon.classList.remove('hidden');
-                        muteIcon.classList.add('hidden');
-                    }
-                }
-
-                // Audio ended
-                audio.addEventListener('ended', () => {
+                if (audio.paused) {
+                    audio.play();
+                    player.classList.add('playing');
+                    playIcon.classList.add('hidden');
+                    pauseIcon.classList.remove('hidden');
+                } else {
+                    audio.pause();
                     player.classList.remove('playing');
                     playIcon.classList.remove('hidden');
                     pauseIcon.classList.add('hidden');
-                    progressFill.style.width = '0%';
-                    progressBar.value = 0;
-                });
+                }
+            });
 
-                // Set initial volume
-                audio.volume = 0.8;
+            // Update progress
+            audio.addEventListener('timeupdate', () => {
+                const percent = (audio.currentTime / audio.duration) * 100 || 0;
+                progressFill.style.width = percent + '%';
+                progressBar.value = percent;
+                timeDisplay.textContent = formatTime(audio.currentTime);
+            });
+
+            // Duration loaded
+            audio.addEventListener('loadedmetadata', () => {
+                durationDisplay.textContent = '/ ' + formatTime(audio.duration);
+            });
+
+            // Seek
+            progressBar.addEventListener('input', (e) => {
+                const percent = e.target.value;
+                audio.currentTime = (percent / 100) * audio.duration;
+                progressFill.style.width = percent + '%';
+            });
+
+            // Volume
+            volumeSlider.addEventListener('input', (e) => {
+                const vol = e.target.value / 100;
+                audio.volume = vol;
+                lastVolume = vol > 0 ? vol : lastVolume;
+                updateVolumeIcon(vol);
+            });
+
+            // Mute toggle
+            volumeBtn.addEventListener('click', () => {
+                if (audio.volume > 0) {
+                    lastVolume = audio.volume;
+                    audio.volume = 0;
+                    volumeSlider.value = 0;
+                } else {
+                    audio.volume = lastVolume;
+                    volumeSlider.value = lastVolume * 100;
+                }
+                updateVolumeIcon(audio.volume);
+            });
+
+            function updateVolumeIcon(vol) {
+                if (vol === 0) {
+                    volumeIcon.classList.add('hidden');
+                    muteIcon.classList.remove('hidden');
+                } else {
+                    volumeIcon.classList.remove('hidden');
+                    muteIcon.classList.add('hidden');
+                }
+            }
+
+            // Audio ended
+            audio.addEventListener('ended', () => {
+                player.classList.remove('playing');
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+                progressFill.style.width = '0%';
+                progressBar.value = 0;
+            });
+
+            // Set initial volume
+            audio.volume = 0.8;
+        }
+
+        function initAudioPlayers() {
+            document.querySelectorAll('.custom-audio-player').forEach(player => {
+                initSingleAudioPlayer(player);
             });
         }
 

@@ -349,6 +349,54 @@ app.get('/api/task-status', requireAuth, (req, res) => {
     res.json({ episodes: filtered });
 });
 
+// API: Get Episode Card HTML (for AJAX updates without full page reload)
+app.get('/api/episode/:id/card', requireAuth, (req, res) => {
+    const episode = db.getEpisodeById(req.params.id);
+    
+    if (!episode) {
+        return res.status(404).json({ error: 'Episodio no encontrado' });
+    }
+    
+    // Check ownership
+    if (episode.user_id !== req.session.userId && req.session.role !== 'admin') {
+        return res.status(403).json({ error: 'No autorizado' });
+    }
+    
+    // Render the partial template
+    res.render('partials/episode_card', { episode }, (err, html) => {
+        if (err) {
+            console.error('Error rendering episode card:', err);
+            return res.status(500).json({ error: 'Error al renderizar tarjeta' });
+        }
+        res.json({ html, episode: { 
+            id: episode.id,
+            status: episode.status,
+            translation_status: episode.translation_status
+        }});
+    });
+});
+
+// API: Get Episode Logs (for translation progress)
+app.get('/api/episode/:id/logs', requireAuth, (req, res) => {
+    const episode = db.getEpisodeById(req.params.id);
+    
+    if (!episode) {
+        return res.status(404).json({ error: 'Episodio no encontrado' });
+    }
+    
+    // Check ownership
+    if (episode.user_id !== req.session.userId && req.session.role !== 'admin') {
+        return res.status(403).json({ error: 'No autorizado' });
+    }
+    
+    const logs = translationService.getLogs(episode.id);
+    res.json({ 
+        logs,
+        status: episode.translation_status,
+        episodeId: episode.id
+    });
+});
+
 // Admin: Clear All Episodes
 app.post('/api/clear-all', requireAdmin, (req, res) => {
     try {

@@ -10,6 +10,13 @@ const DOWNLOADS_DIR = path.join(__dirname, '../downloads');
 const SCRIPTS_DIR = path.join(__dirname, '../scripts');
 const VENV_PYTHON = path.join(__dirname, '../venv/bin/python3');
 
+// Buffer de logs en memoria para cada episodio en traducción
+// Estructura: { episodeId: { logs: [], lastUpdate: Date } }
+const activeLogs = new Map();
+
+// Límite de logs por episodio para evitar uso excesivo de memoria
+const MAX_LOGS_PER_EPISODE = 100;
+
 // Helper for logs
 const logError = (message, error) => {
     if (process.env.ENABLE_LOGS === 'true') {
@@ -22,6 +29,49 @@ const logInfo = (message) => {
         console.log(message);
     }
 };
+
+/**
+ * Añade un log al buffer de un episodio.
+ * @param {number} episodeId - ID del episodio.
+ * @param {string} message - Mensaje de log.
+ * @param {string} type - Tipo de log: 'info', 'progress', 'error'.
+ */
+function addLog(episodeId, message, type = 'info') {
+    if (!activeLogs.has(episodeId)) {
+        activeLogs.set(episodeId, { logs: [], lastUpdate: new Date() });
+    }
+    
+    const logEntry = activeLogs.get(episodeId);
+    logEntry.logs.push({
+        timestamp: new Date().toISOString(),
+        message,
+        type
+    });
+    logEntry.lastUpdate = new Date();
+    
+    // Limitar cantidad de logs
+    if (logEntry.logs.length > MAX_LOGS_PER_EPISODE) {
+        logEntry.logs = logEntry.logs.slice(-MAX_LOGS_PER_EPISODE);
+    }
+}
+
+/**
+ * Obtiene los logs de un episodio.
+ * @param {number} episodeId - ID del episodio.
+ * @returns {Array} - Array de logs.
+ */
+function getLogs(episodeId) {
+    const entry = activeLogs.get(episodeId);
+    return entry ? entry.logs : [];
+}
+
+/**
+ * Limpia los logs de un episodio.
+ * @param {number} episodeId - ID del episodio.
+ */
+function clearLogs(episodeId) {
+    activeLogs.delete(episodeId);
+}
 
 /**
  * Inicia el proceso de traducción para un episodio.
@@ -50,6 +100,11 @@ async function startTranslation(episodeId) {
     
     // Marcar como procesando
     db.updateTranslationStatusById(episodeId, 'processing');
+    
+    // Inicializar buffer de logs
+    clearLogs(episodeId);
+    addLog(episodeId, 'Iniciando traducción...', 'info');
+    
     translationEmitter.emit('progress', {
         episodeId,
         videoId: episode.youtube_id,
@@ -133,11 +188,15 @@ async function performTranslation(episode) {
                     // Ignorar el JSON de resultado final (tiene campo 'success')
                     if (progress.success !== undefined) {
                         logInfo(`[Translation ${episode.youtube_id}] Resultado: ${JSON.stringify(progress)}`);
+                        addLog(episode.id, `Resultado: ${progress.success ? 'Éxito' : 'Error'}`, progress.success ? 'info' : 'error');
                         continue;
                     }
                     
                     // Solo emitir si tiene los campos de progreso
                     if (progress.stage !== undefined) {
+                        // Añadir al buffer de logs
+                        addLog(episode.id, `[${progress.stage}] ${progress.percent}% - ${progress.message}`, 'progress');
+                        
                         translationEmitter.emit('progress', {
                             episodeId: episode.id,
                             videoId: episode.youtube_id,
@@ -151,13 +210,18 @@ async function performTranslation(episode) {
                     }
                 } catch (e) {
                     // No es JSON, puede ser output normal
+                    addLog(episode.id, line, 'info');
                     logInfo(`[Translation ${episode.youtube_id}] ${line}`);
                 }
             }
         });
         
         pythonProcess.stderr.on('data', (data) => {
-            logError(`[Translation ${episode.youtube_id}] stderr:`, data.toString());
+            const stderrText = data.toString().trim();
+            if (stderrText) {
+                addLog(episode.id, stderrText, 'error');
+            }
+            logError(`[Translation ${episode.youtube_id}] stderr:`, stderrText);
         });
         
         pythonProcess.on('close', (code) => {
@@ -166,6 +230,8 @@ async function performTranslation(episode) {
                 if (fs.existsSync(outputPath)) {
                     // Actualizar DB con estado ready
                     db.updateTranslationStatusById(episode.id, 'ready', outputFileName);
+                    
+                    addLog(episode.id, 'Traducción completada exitosamente', 'info');
                     
                     translationEmitter.emit('progress', {
                         episodeId: episode.id,
@@ -177,15 +243,21 @@ async function performTranslation(episode) {
                     });
                     
                     logInfo(`Traducción completada: ${outputPath}`);
+                    
+                    // Limpiar logs después de un tiempo (mantener por 5 minutos para consulta)
+                    setTimeout(() => clearLogs(episode.id), 5 * 60 * 1000);
+                    
                     resolve(outputPath);
                 } else {
                     const error = new Error('El archivo de salida no fue generado');
+                    addLog(episode.id, 'Error: El archivo de salida no fue generado', 'error');
                     db.updateTranslationStatusById(episode.id, 'error');
                     reject(error);
                 }
             } else {
                 const errorMsg = lastProgress?.message || `Proceso terminó con código ${code}`;
                 const error = new Error(errorMsg);
+                addLog(episode.id, `Error: ${errorMsg}`, 'error');
                 db.updateTranslationStatusById(episode.id, 'error');
                 reject(error);
             }
@@ -220,6 +292,8 @@ function cleanupTranslatedFile(episode) {
 module.exports = {
     startTranslation,
     cleanupTranslatedFile,
-    translationEmitter
+    translationEmitter,
+    getLogs,
+    clearLogs
 };
 

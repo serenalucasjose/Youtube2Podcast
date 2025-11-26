@@ -670,3 +670,79 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
         height: 16rem;
     }
 }
+
+/* === TRANSLATION LOGS CONTAINER === */
+.translation-logs-container {
+    position: relative;
+    height: 4rem; /* Fixed height */
+    overflow: hidden;
+}
+
+.translation-logs {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 100%;
+    padding-bottom: 0.25rem;
+}
+
+/* Fade overlays for scroll effect */
+.logs-fade-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1rem;
+    background: linear-gradient(to bottom, #1f2937 0%, transparent 100%);
+    z-index: 1;
+    pointer-events: none;
+}
+
+.logs-fade-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 0.75rem;
+    background: linear-gradient(to top, #1f2937 0%, transparent 100%);
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Individual log lines */
+.log-line {
+    padding: 0.1rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    animation: logFadeIn 0.3s ease-out;
+}
+
+@keyframes logFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Older logs fade out */
+.translation-logs .log-line:not(:nth-last-child(-n+3)) {
+    opacity: 0.3;
+}
+
+.translation-logs .log-line:nth-last-child(3) {
+    opacity: 0.5;
+}
+
+.translation-logs .log-line:nth-last-child(2) {
+    opacity: 0.75;
+}
+
+.translation-logs .log-line:last-child {
+    opacity: 1;
+    color: #e5e7eb;
+}
