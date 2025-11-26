@@ -11,7 +11,18 @@
 .z-\[9999\] { z-index: 9999 !important; }
 .z-\[10000\] { z-index: 10000 !important; }
 .bg-opacity-90 { --tw-bg-opacity: 0.9 !important; background-color: rgba(0,0,0,0.9) !important; }
-.backdrop-blur-sm { backdrop-filter: blur(4px) !important; -webkit-backdrop-filter: blur(4px) !important; }
+/* Cross-browser backdrop blur */
+.backdrop-blur-sm { 
+    -webkit-backdrop-filter: blur(4px) !important; 
+    backdrop-filter: blur(4px) !important; 
+}
+
+/* Firefox fallback for backdrop-filter (older versions) */
+@supports not (backdrop-filter: blur(4px)) {
+    .backdrop-blur-sm {
+        background-color: rgba(0, 0, 0, 0.85) !important;
+    }
+}
 
 /* Ensure overlay is on top of everything */
 #walk-overlay {
@@ -231,9 +242,15 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
     color: #1f2937; /* gray-800 for light mode */
     margin-bottom: 0.25rem;
     line-height: 1.3;
+    /* Cross-browser line clamp */
     display: -webkit-box;
+    display: -moz-box;
     -webkit-line-clamp: 2;
+    -moz-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
+    -moz-box-orient: vertical;
+    box-orient: vertical;
     overflow: hidden;
     text-transform: uppercase; /* Match provided screenshot style */
     letter-spacing: 0.025em;
@@ -340,8 +357,9 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
 
 /* Checkbox Styling */
 .episode-checkbox {
-    appearance: none;
     -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
     width: 1.25rem;
     height: 1.25rem;
     border: 2px solid #4b5563; /* gray-600 */
@@ -403,7 +421,22 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
     }
 }
 
-/* Processing Animations */
+/* Processing Animations - Cross-browser */
+@-webkit-keyframes pulse-card {
+    0%, 100% { 
+        opacity: 1; 
+        border-color: #374151; 
+        -webkit-box-shadow: 0 0 0 0 rgba(75, 85, 99, 0.4);
+        box-shadow: 0 0 0 0 rgba(75, 85, 99, 0.4);
+    }
+    50% { 
+        opacity: 0.7; 
+        border-color: #4b5563; 
+        -webkit-box-shadow: 0 0 15px 2px rgba(75, 85, 99, 0.6);
+        box-shadow: 0 0 15px 2px rgba(75, 85, 99, 0.6);
+    }
+}
+
 @keyframes pulse-card {
     0%, 100% { 
         opacity: 1; 
@@ -417,18 +450,37 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
     }
 }
 
+@-webkit-keyframes spin {
+    from { -webkit-transform: rotate(0deg); transform: rotate(0deg); }
+    to { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
+}
+
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
 
 .episode-card.processing {
+    -webkit-animation: pulse-card 1.5s infinite ease-in-out;
     animation: pulse-card 1.5s infinite ease-in-out;
     border-color: #4b5563; 
     background-color: #252f3f; /* Slightly lighter background during processing */
 }
 
-/* Translation in progress animation */
+/* Translation in progress animation - Cross-browser */
+@-webkit-keyframes pulse-translate {
+    0%, 100% { 
+        border-color: #0e7490; 
+        -webkit-box-shadow: 0 0 0 0 rgba(14, 116, 144, 0.4);
+        box-shadow: 0 0 0 0 rgba(14, 116, 144, 0.4);
+    }
+    50% { 
+        border-color: #06b6d4; 
+        -webkit-box-shadow: 0 0 15px 2px rgba(6, 182, 212, 0.5);
+        box-shadow: 0 0 15px 2px rgba(6, 182, 212, 0.5);
+    }
+}
+
 @keyframes pulse-translate {
     0%, 100% { 
         border-color: #0e7490; 
@@ -441,11 +493,13 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
 }
 
 .episode-card.translating {
+    -webkit-animation: pulse-translate 1.5s infinite ease-in-out;
     animation: pulse-translate 1.5s infinite ease-in-out;
     border-color: #0e7490;
 }
 
 .animate-spin {
+    -webkit-animation: spin 1s linear infinite;
     animation: spin 1s linear infinite;
 }
 
@@ -527,6 +581,7 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
     cursor: pointer;
     z-index: 2;
     -webkit-appearance: none;
+    -moz-appearance: none;
     appearance: none;
     margin: 0;
 }
@@ -546,6 +601,7 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
     font-size: 0.7rem;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
     color: #94a3b8;
+    min-width: -moz-fit-content;
     min-width: fit-content;
     white-space: nowrap;
 }
@@ -595,10 +651,23 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
     width: 50px;
     height: 4px;
     -webkit-appearance: none;
+    -moz-appearance: none;
     appearance: none;
     background: #334155;
     border-radius: 2px;
     cursor: pointer;
+}
+
+/* Firefox specific track styling */
+.audio-volume::-moz-range-track {
+    background: #334155;
+    border-radius: 2px;
+    height: 4px;
+}
+
+.audio-progress::-moz-range-track {
+    background: transparent;
+    height: 100%;
 }
 
 .audio-volume::-webkit-slider-thumb {
@@ -814,7 +883,21 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    -webkit-animation: logFadeIn 0.3s ease-out;
     animation: logFadeIn 0.3s ease-out;
+}
+
+@-webkit-keyframes logFadeIn {
+    from {
+        opacity: 0;
+        -webkit-transform: translateY(8px);
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        -webkit-transform: translateY(0);
+        transform: translateY(0);
+    }
 }
 
 @keyframes logFadeIn {
@@ -926,7 +1009,20 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
     padding-bottom: 0.25rem;
 }
 
-/* Transcription in progress animation */
+/* Transcription in progress animation - Cross-browser */
+@-webkit-keyframes pulse-transcribe {
+    0%, 100% { 
+        border-color: #7e22ce; 
+        -webkit-box-shadow: 0 0 0 0 rgba(126, 34, 206, 0.4);
+        box-shadow: 0 0 0 0 rgba(126, 34, 206, 0.4);
+    }
+    50% { 
+        border-color: #a855f7; 
+        -webkit-box-shadow: 0 0 15px 2px rgba(168, 85, 247, 0.5);
+        box-shadow: 0 0 15px 2px rgba(168, 85, 247, 0.5);
+    }
+}
+
 @keyframes pulse-transcribe {
     0%, 100% { 
         border-color: #7e22ce; 
@@ -939,6 +1035,7 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
 }
 
 .episode-card.transcribing {
+    -webkit-animation: pulse-transcribe 1.5s infinite ease-in-out;
     animation: pulse-transcribe 1.5s infinite ease-in-out;
     border-color: #7e22ce;
 }
@@ -959,6 +1056,74 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
 .transcription-logs .log-line:last-child {
     opacity: 1;
     color: #e5e7eb;
+}
+
+/* === SCROLLBAR CROSS-BROWSER STYLING === */
+/* Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(155, 155, 155, 0.5);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(155, 155, 155, 0.7);
+}
+
+/* Firefox scrollbar styling */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
+}
+
+/* === FLEX LAYOUT CROSS-BROWSER === */
+/* Fix for older Firefox flex behavior */
+.flex-shrink-0 {
+    -webkit-flex-shrink: 0;
+    -ms-flex-negative: 0;
+    flex-shrink: 0;
+}
+
+.flex-grow {
+    -webkit-flex-grow: 1;
+    -ms-flex-positive: 1;
+    flex-grow: 1;
+}
+
+.flex-1 {
+    -webkit-flex: 1 1 0%;
+    -ms-flex: 1 1 0%;
+    flex: 1 1 0%;
+}
+
+/* === TRANSFORM CROSS-BROWSER === */
+.transform {
+    -webkit-transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+    -moz-transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+    transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+/* === USER-SELECT CROSS-BROWSER === */
+.select-none {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.select-all {
+    -webkit-user-select: all;
+    -moz-user-select: all;
+    -ms-user-select: all;
+    user-select: all;
 }
 
 /* === NAVBAR MOBILE FIXES === */

@@ -24,6 +24,12 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy when behind reverse proxy (Nginx, Cloudflare, etc.)
+// This is required for secure cookies and correct IP detection
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+}
+
 // Cleanup stale processing episodes on startup (handles server crashes/restarts)
 const staleReset = db.resetStaleProcessingEpisodes();
 if (staleReset.changes > 0) {
@@ -68,6 +74,7 @@ app.use('/vendor/bi', express.static(path.join(__dirname, '../node_modules/boots
 }));
 
 // Session Setup
+const isProduction = process.env.NODE_ENV === 'production';
 app.use(session({
     store: new SQLiteStore({
         db: 'sessions.db',
@@ -76,7 +83,12 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'secret_key_change_me',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 } // 1 week
+    cookie: { 
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+        secure: isProduction, // Use secure cookies in production (HTTPS)
+        httpOnly: true,
+        sameSite: isProduction ? 'lax' : 'lax' // Prevent CSRF
+    }
 }));
 
 // View Engine

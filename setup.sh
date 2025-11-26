@@ -193,7 +193,6 @@ step_env_configuration() {
     print_header "PASO 4: Configuración del Entorno (.env)"
     
     ENV_FILE="$PROJECT_DIR/.env"
-    ENV_EXAMPLE="$PROJECT_DIR/.env.example"
     
     # Verificar si .env ya existe
     if [[ -f "$ENV_FILE" ]]; then
@@ -201,15 +200,46 @@ step_env_configuration() {
         echo ""
         cat "$ENV_FILE"
         echo ""
-        print_success "Configuración existente detectada. Omitiendo este paso."
+        
+        # Verificar si tiene NODE_ENV configurado
+        if ! grep -q "^NODE_ENV=" "$ENV_FILE"; then
+            print_warning "NODE_ENV no está configurado en .env"
+            if confirm "¿Agregar NODE_ENV=production al archivo existente?"; then
+                echo "" >> "$ENV_FILE"
+                echo "# Entorno de ejecución (production para HTTPS/proxy)" >> "$ENV_FILE"
+                echo "NODE_ENV=production" >> "$ENV_FILE"
+                print_success "NODE_ENV=production agregado al .env"
+            fi
+        fi
+        
+        print_success "Configuración existente detectada."
         return 0
     fi
     
     print_info "Este paso creará el archivo .env con:"
+    echo "  • NODE_ENV para entorno de producción"
+    echo "  • PORT para el servidor"
     echo "  • SESSION_SECRET generado automáticamente"
     echo "  • Claves VAPID para notificaciones push"
-    echo "  • Configuración base desde .env.example"
     echo ""
+    
+    # Preguntar por el entorno
+    echo -ne "${CYAN}¿Es un entorno de producción (con HTTPS/proxy)? [S/n]: ${NC}"
+    read -r is_production
+    is_production=$(echo "$is_production" | tr '[:upper:]' '[:lower:]')
+    
+    if [[ -z "$is_production" || "$is_production" == "s" || "$is_production" == "si" || "$is_production" == "y" ]]; then
+        NODE_ENV="production"
+    else
+        NODE_ENV="development"
+    fi
+    
+    # Preguntar por el puerto
+    echo -ne "${CYAN}Puerto del servidor [3000]: ${NC}"
+    read -r server_port
+    if [[ -z "$server_port" ]]; then
+        server_port="3000"
+    fi
     
     if confirm "¿Generar archivo de configuración .env?"; then
         print_step "Generando configuración..."
@@ -243,7 +273,15 @@ step_env_configuration() {
         
         # Crear archivo .env
         cat > "$ENV_FILE" << EOF
-# Session secret (generado automáticamente)
+# Entorno de ejecución
+# production: activa cookies seguras, trust proxy para HTTPS
+# development: para desarrollo local sin HTTPS
+NODE_ENV=$NODE_ENV
+
+# Puerto del servidor
+PORT=$server_port
+
+# Session secret (generado automáticamente - NO COMPARTIR)
 SESSION_SECRET=$SESSION_SECRET
 
 # Enable debug logs
@@ -262,6 +300,14 @@ EOF
         echo -e "${CYAN}"
         cat "$ENV_FILE"
         echo -e "${NC}"
+        
+        if [[ "$NODE_ENV" == "production" ]]; then
+            print_success "Configurado para producción con HTTPS"
+            print_info "Las cookies de sesión serán seguras (solo HTTPS)"
+        else
+            print_warning "Configurado para desarrollo local"
+            print_info "Cambia NODE_ENV=production cuando despliegues con HTTPS"
+        fi
         
         print_warning "Recuerda cambiar VAPID_SUBJECT por tu email real si usas notificaciones push"
         return 0
@@ -390,7 +436,19 @@ step_start_server() {
         echo ""
         
         cd "$PROJECT_DIR"
-        pm2 start src/index.js --name "$service_name"
+        
+        # Eliminar proceso existente con el mismo nombre (si existe)
+        pm2 delete "$service_name" 2>/dev/null
+        
+        # Detectar NODE_ENV desde .env si existe
+        ENV_FILE="$PROJECT_DIR/.env"
+        if [[ -f "$ENV_FILE" ]] && grep -q "^NODE_ENV=production" "$ENV_FILE"; then
+            print_info "Detectado NODE_ENV=production en .env"
+            print_info "Iniciando en modo producción (cookies seguras, trust proxy)..."
+            pm2 start src/index.js --name "$service_name" --env production
+        else
+            pm2 start src/index.js --name "$service_name"
+        fi
         
         if [[ $? -eq 0 ]]; then
             echo ""
