@@ -6,7 +6,8 @@
     <title>Youtube2Podcast</title>
     <link rel="stylesheet" href="/css/styles.css">
     <link rel="stylesheet" href="/css/custom.css">
-    <link rel="stylesheet" href="/vendor/bi/font/bootstrap-icons.css">
+    <!-- Subset optimizado de Bootstrap Icons (~15KB vs ~1.5MB) -->
+    <link rel="stylesheet" href="/css/icons.css">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#dc2626">
     <link rel="icon" type="image/png" href="/icons/logo.png">
@@ -898,8 +899,10 @@
             return div.innerHTML;
         }
 
-        // Polling fallback for state sync (runs every 10s if there are processing items)
+        // Polling fallback for state sync (runs only when there are processing items)
         // This handles cases where SSE events are missed (network issues, server restart, etc.)
+        let pollingInterval = null;
+        
         function getProcessingEpisodeIds() {
             // Include downloading, translating, and transcribing episodes
             const processingCards = document.querySelectorAll('.episode-card.processing, .episode-card.translating, .episode-card.transcribing');
@@ -910,10 +913,30 @@
             });
             return ids;
         }
+        
+        // Gestión inteligente del polling - solo activo cuando hay tareas
+        function startPollingIfNeeded() {
+            const ids = getProcessingEpisodeIds();
+            
+            if (ids.length > 0 && !pollingInterval) {
+                // Iniciar polling solo si hay tareas activas
+                pollingInterval = setInterval(pollTaskStatus, 5000);
+                console.log('Polling started - active tasks:', ids.length);
+            } else if (ids.length === 0 && pollingInterval) {
+                // Detener polling si no hay tareas
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+                console.log('Polling stopped - no active tasks');
+            }
+        }
 
         async function pollTaskStatus() {
             const ids = getProcessingEpisodeIds();
-            if (ids.length === 0) return;
+            if (ids.length === 0) {
+                // No hay tareas, detener polling
+                startPollingIfNeeded();
+                return;
+            }
 
             try {
                 const response = await fetch(`/api/task-status?ids=${ids.join(',')}`);
@@ -952,15 +975,23 @@
                         continue;
                     }
                 }
+                
+                // Verificar si debemos seguir con el polling
+                startPollingIfNeeded();
             } catch (err) {
                 console.warn('Polling failed:', err);
             }
         }
 
-        // Start polling interval (every 5 seconds for better UX)
-        setInterval(pollTaskStatus, 5000);
-        // Also poll once on page load after a short delay (catch immediate state changes)
-        setTimeout(pollTaskStatus, 2000);
+        // Inicializar polling solo si hay tareas activas al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            // Verificar después de un breve delay para dar tiempo a que se renderice
+            setTimeout(() => {
+                startPollingIfNeeded();
+                // También hacer un poll inicial
+                pollTaskStatus();
+            }, 2000);
+        });
 
         // Walk Mode
         const walkBtn = document.getElementById('walk-mode-btn');

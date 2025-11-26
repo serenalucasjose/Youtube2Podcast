@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 const session = require('express-session');
@@ -30,12 +31,41 @@ if (staleReset.changes > 0) {
 }
 
 // Middleware
+// Compresión HTTP (excluir SSE)
+app.use(compression({
+    level: 6,
+    threshold: 1024,
+    filter: (req, res) => {
+        if (req.headers.accept === 'text/event-stream') {
+            return false;
+        }
+        return compression.filter(req, res);
+    }
+}));
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
-app.use('/downloads', express.static(path.join(__dirname, '../downloads')));
-// Serve Bootstrap Icons from node_modules
-app.use('/vendor/bi', express.static(path.join(__dirname, '../node_modules/bootstrap-icons')));
+
+// Assets estáticos con cache optimizado
+app.use(express.static(path.join(__dirname, '../public'), {
+    maxAge: '7d',
+    etag: true,
+    lastModified: true
+}));
+
+// Downloads con soporte para Range requests (seeking en audio)
+app.use('/downloads', express.static(path.join(__dirname, '../downloads'), {
+    acceptRanges: true,
+    maxAge: '1d',
+    etag: true,
+    lastModified: true
+}));
+
+// Vendor con cache largo (versionado por npm)
+app.use('/vendor/bi', express.static(path.join(__dirname, '../node_modules/bootstrap-icons'), {
+    maxAge: '30d',
+    immutable: true
+}));
 
 // Session Setup
 app.use(session({
@@ -75,11 +105,12 @@ app.get('/login', (req, res) => {
     res.render('login');
 });
 
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
     const { username, password } = req.body;
     const user = db.getUserByUsername(username);
     
-    if (user && bcrypt.compareSync(password, user.password_hash)) {
+    // Usar bcrypt async para no bloquear el event loop
+    if (user && await bcrypt.compare(password, user.password_hash)) {
         req.session.userId = user.id;
         req.session.username = user.username;
         req.session.role = user.role;
@@ -220,8 +251,8 @@ app.post('/add', requireAuth, async (req, res) => {
     }
 });
 
-// Delete Episodes
-app.post('/delete', requireAuth, (req, res) => {
+// Delete Episodes (async para no bloquear I/O)
+app.post('/delete', requireAuth, async (req, res) => {
     let ids = req.body.ids;
     if (!ids) {
         return res.status(400).send('No IDs provided');
@@ -235,20 +266,20 @@ app.post('/delete', requireAuth, (req, res) => {
     const downloadsDir = path.join(__dirname, '../downloads');
     const tempDir = path.join(downloadsDir, 'temp');
 
-    ids.forEach(id => {
+    for (const id of ids) {
         const episode = db.getEpisodeById(id);
         if (episode) {
             // Check ownership or admin
             if (episode.user_id === req.session.userId || req.session.role === 'admin') {
-                // Delete main file
+                // Delete main file (async)
                 if (episode.file_path) {
                     const filePath = path.join(downloadsDir, episode.file_path);
                     try {
-                        if (fs.existsSync(filePath)) {
-                            fs.unlinkSync(filePath);
-                        }
+                        await fs.promises.unlink(filePath);
                     } catch (err) {
-                        console.error(`Error deleting file ${filePath}:`, err);
+                        if (err.code !== 'ENOENT') {
+                            console.error(`Error deleting file ${filePath}:`, err);
+                        }
                     }
                 }
                 
@@ -258,18 +289,16 @@ app.post('/delete', requireAuth, (req, res) => {
                 // Delete transcription file if exists
                 transcriptionService.cleanupTranscriptionFile(episode);
                 
-                // Delete any temp files associated with this episode (by youtube_id)
-                if (episode.youtube_id && fs.existsSync(tempDir)) {
+                // Delete any temp files associated with this episode (async batch)
+                if (episode.youtube_id) {
                     try {
-                        const tempFiles = fs.readdirSync(tempDir);
-                        tempFiles.forEach(file => {
-                            if (file.startsWith(episode.youtube_id)) {
-                                const tempFilePath = path.join(tempDir, file);
-                                fs.unlinkSync(tempFilePath);
-                            }
-                        });
+                        const tempFiles = await fs.promises.readdir(tempDir);
+                        const deletePromises = tempFiles
+                            .filter(file => file.startsWith(episode.youtube_id))
+                            .map(file => fs.promises.unlink(path.join(tempDir, file)).catch(() => {}));
+                        await Promise.all(deletePromises);
                     } catch (err) {
-                        console.error(`Error cleaning temp files for ${episode.youtube_id}:`, err);
+                        // tempDir might not exist, that's fine
                     }
                 }
                 
@@ -277,7 +306,7 @@ app.post('/delete', requireAuth, (req, res) => {
                 db.deleteEpisode(id);
             }
         }
-    });
+    }
 
     res.redirect('/');
 });
@@ -401,7 +430,7 @@ app.post('/admin/episodes/:id/transcribe', requireAdmin, async (req, res) => {
 });
 
 // Download Transcription PDF
-app.get('/download-transcription/:id', requireAuth, (req, res) => {
+app.get('/download-transcription/:id', requireAuth, async (req, res) => {
     const episode = db.getEpisodeById(req.params.id);
     
     if (!episode) {
@@ -419,11 +448,12 @@ app.get('/download-transcription/:id', requireAuth, (req, res) => {
 
     const filePath = path.join(__dirname, '../downloads', episode.transcription_file_path);
     
-    if (!fs.existsSync(filePath)) {
+    try {
+        await fs.promises.access(filePath);
+        res.download(filePath, `${episode.title} - Transcripción.pdf`);
+    } catch {
         return res.status(404).send('Archivo no encontrado');
     }
-    
-    res.download(filePath, `${episode.title} - Transcripción.pdf`);
 });
 
 // Get supported transcription languages
@@ -432,7 +462,7 @@ app.get('/api/transcription-languages', requireAuth, (req, res) => {
 });
 
 // Download Translated Episode
-app.get('/download-translated/:id', requireAuth, (req, res) => {
+app.get('/download-translated/:id', requireAuth, async (req, res) => {
     const episode = db.getEpisodeById(req.params.id);
     
     if (!episode) {
@@ -450,36 +480,46 @@ app.get('/download-translated/:id', requireAuth, (req, res) => {
 
     const filePath = path.join(__dirname, '../downloads', episode.translated_file_path);
     
-    if (!fs.existsSync(filePath)) {
+    try {
+        await fs.promises.access(filePath);
+        const ext = path.extname(episode.translated_file_path);
+        res.download(filePath, `${episode.title} (Español)${ext}`);
+    } catch {
         return res.status(404).send('Archivo no encontrado');
     }
-    
-    const ext = path.extname(episode.translated_file_path);
-    res.download(filePath, `${episode.title} (Español)${ext}`);
 });
 
+// Helper: Calcula uso de disco de forma asíncrona
+async function calculateDiskUsage(dir) {
+    try {
+        const files = await fs.promises.readdir(dir);
+        const stats = await Promise.all(
+            files.map(async (file) => {
+                const filePath = path.join(dir, file);
+                try {
+                    const stat = await fs.promises.stat(filePath);
+                    return stat.isFile() ? stat.size : 0;
+                } catch {
+                    return 0;
+                }
+            })
+        );
+        return stats.reduce((sum, size) => sum + size, 0);
+    } catch {
+        return 0;
+    }
+}
+
 // Admin Panel
-app.get('/admin', requireAdmin, (req, res) => {
+app.get('/admin', requireAdmin, async (req, res) => {
     const users = db.getAllUsers();
     const allEpisodes = db.getEpisodes(); // Get all episodes (no user filter)
     const stats = db.getAdminStats();
     const error = req.query.error || null;
     
-    // Calculate disk usage
+    // Calculate disk usage asíncronamente
     const downloadsDir = path.join(__dirname, '../downloads');
-    let diskUsage = 0;
-    try {
-        const files = fs.readdirSync(downloadsDir);
-        for (const file of files) {
-            const filePath = path.join(downloadsDir, file);
-            const stat = fs.statSync(filePath);
-            if (stat.isFile()) {
-                diskUsage += stat.size;
-            }
-        }
-    } catch (err) {
-        console.error('Error calculating disk usage:', err);
-    }
+    const diskUsage = await calculateDiskUsage(downloadsDir);
     
     res.render('admin', { 
         users,
@@ -642,17 +682,19 @@ app.post('/api/push/unsubscribe', requireAuth, (req, res) => {
     }
 });
 
-// Admin: Clear All Episodes
-app.post('/api/clear-all', requireAdmin, (req, res) => {
+// Admin: Clear All Episodes (async)
+app.post('/api/clear-all', requireAdmin, async (req, res) => {
     try {
         db.deleteAllEpisodes();
         const downloadsDir = path.join(__dirname, '../downloads');
-        const files = fs.readdirSync(downloadsDir);
-        for (const file of files) {
-            if (file !== 'temp') {
-                fs.unlinkSync(path.join(downloadsDir, file));
-            }
-        }
+        const files = await fs.promises.readdir(downloadsDir);
+        
+        // Delete all files in parallel except 'temp' directory
+        const deletePromises = files
+            .filter(file => file !== 'temp')
+            .map(file => fs.promises.unlink(path.join(downloadsDir, file)).catch(() => {}));
+        
+        await Promise.all(deletePromises);
         res.redirect('/admin');
     } catch (error) {
         console.error(error);

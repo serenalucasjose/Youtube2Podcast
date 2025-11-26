@@ -28,6 +28,7 @@ const VENV_PYTHON = path.join(__dirname, '../venv/bin/python3');
 // Buffer de logs en memoria para cada episodio en transcripción
 const activeLogs = new Map();
 const MAX_LOGS_PER_EPISODE = 100;
+const MAX_ACTIVE_EPISODES = 20;  // Límite global para prevenir memory leaks
 
 // Idiomas soportados (debe coincidir con process_transcription.py)
 const SUPPORTED_LANGUAGES = {
@@ -71,19 +72,39 @@ const logInfo = (message) => {
 
 /**
  * Añade un log al buffer de un episodio.
+ * Implementa límite global de episodios para prevenir memory leaks.
  */
 function addLog(episodeId, message, type = 'info') {
+    // Limpiar episodios antiguos si excedemos el límite global
+    if (!activeLogs.has(episodeId) && activeLogs.size >= MAX_ACTIVE_EPISODES) {
+        let oldestId = null;
+        let oldestTime = Infinity;
+        
+        for (const [id, entry] of activeLogs.entries()) {
+            const entryTime = entry.lastUpdate.getTime();
+            if (entryTime < oldestTime) {
+                oldestTime = entryTime;
+                oldestId = id;
+            }
+        }
+        
+        if (oldestId) {
+            activeLogs.delete(oldestId);
+        }
+    }
+    
     if (!activeLogs.has(episodeId)) {
         activeLogs.set(episodeId, { logs: [], lastUpdate: new Date() });
     }
     
+    const now = new Date();
     const logEntry = activeLogs.get(episodeId);
     logEntry.logs.push({
-        timestamp: new Date().toISOString(),
+        timestamp: now.toISOString(),
         message,
         type
     });
-    logEntry.lastUpdate = new Date();
+    logEntry.lastUpdate = now;
     
     if (logEntry.logs.length > MAX_LOGS_PER_EPISODE) {
         logEntry.logs = logEntry.logs.slice(-MAX_LOGS_PER_EPISODE);
@@ -188,14 +209,18 @@ async function performTranscription(episode, language = 'en') {
     const outputFileName = `${episode.youtube_id}_transcript_${language}.pdf`;
     const outputPath = path.join(DOWNLOADS_DIR, outputFileName);
     
-    // Verificar que el archivo de entrada existe
-    if (!fs.existsSync(inputPath)) {
+    // Verificar que el archivo de entrada existe (async)
+    try {
+        await fs.promises.access(inputPath);
+    } catch {
         throw new Error(`Archivo de entrada no encontrado: ${inputPath}`);
     }
     
-    // Determinar qué Python usar
+    // Determinar qué Python usar (async)
     let pythonPath = VENV_PYTHON;
-    if (!fs.existsSync(pythonPath)) {
+    try {
+        await fs.promises.access(pythonPath);
+    } catch {
         pythonPath = 'python3';
         logInfo('Usando Python del sistema (venv no encontrado)');
     }
@@ -265,9 +290,16 @@ async function performTranscription(episode, language = 'en') {
             logError(`[Transcription ${episode.youtube_id}] stderr:`, stderrText);
         });
         
-        pythonProcess.on('close', (code) => {
+        pythonProcess.on('close', async (code) => {
             if (code === 0) {
-                if (fs.existsSync(outputPath)) {
+                // Verificar archivo de salida (async)
+                let outputExists = false;
+                try {
+                    await fs.promises.access(outputPath);
+                    outputExists = true;
+                } catch {}
+                
+                if (outputExists) {
                     db.updateTranscriptionStatusById(episode.id, 'ready', outputFileName);
                     
                     addLog(episode.id, 'Transcripción completada exitosamente', 'info');
@@ -370,18 +402,20 @@ async function sendPushNotification(userId, title, success) {
 
 /**
  * Elimina el archivo de transcripción de un episodio.
+ * Usa operación síncrona por compatibilidad con llamadas existentes,
+ * pero maneja errores de forma segura.
  */
 function cleanupTranscriptionFile(episode) {
     if (episode.transcription_file_path) {
         const filePath = path.join(DOWNLOADS_DIR, episode.transcription_file_path);
-        try {
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-                logInfo(`Archivo de transcripción eliminado: ${filePath}`);
-            }
-        } catch (err) {
-            logError(`Error eliminando archivo de transcripción ${filePath}:`, err);
-        }
+        // Usar versión async con fire-and-forget para no bloquear
+        fs.promises.unlink(filePath)
+            .then(() => logInfo(`Archivo de transcripción eliminado: ${filePath}`))
+            .catch(err => {
+                if (err.code !== 'ENOENT') {
+                    logError(`Error eliminando archivo de transcripción ${filePath}:`, err);
+                }
+            });
     }
 }
 

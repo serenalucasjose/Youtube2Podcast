@@ -165,9 +165,9 @@ module.exports = {
           return db.prepare('UPDATE episodes SET status = ? WHERE youtube_id = ?').run(status, youtubeId);
       }
   },
-  getEpisodes: (userId = null) => {
+  getEpisodes: (userId = null, { limit = 50, offset = 0 } = {}) => {
     if (userId) {
-        return db.prepare('SELECT * FROM episodes WHERE user_id = ? ORDER BY created_at DESC').all(userId);
+        return db.prepare('SELECT * FROM episodes WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(userId, limit, offset);
     }
     // For admin view, include username
     return db.prepare(`
@@ -175,7 +175,14 @@ module.exports = {
         FROM episodes e 
         LEFT JOIN users u ON e.user_id = u.id 
         ORDER BY e.created_at DESC
-    `).all();
+        LIMIT ? OFFSET ?
+    `).all(limit, offset);
+  },
+  getEpisodesCount: (userId = null) => {
+    if (userId) {
+        return db.prepare('SELECT COUNT(*) as count FROM episodes WHERE user_id = ?').get(userId).count;
+    }
+    return db.prepare('SELECT COUNT(*) as count FROM episodes').get().count;
   },
   getEpisodeById: (id) => {
     return db.prepare('SELECT * FROM episodes WHERE id = ?').get(id);

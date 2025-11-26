@@ -31,6 +31,7 @@ const activeLogs = new Map();
 
 // Límite de logs por episodio para evitar uso excesivo de memoria
 const MAX_LOGS_PER_EPISODE = 100;
+const MAX_ACTIVE_EPISODES = 20;  // Límite global para prevenir memory leaks
 
 // Helper for logs
 const logError = (message, error) => {
@@ -47,22 +48,42 @@ const logInfo = (message) => {
 
 /**
  * Añade un log al buffer de un episodio.
+ * Implementa límite global de episodios para prevenir memory leaks.
  * @param {number} episodeId - ID del episodio.
  * @param {string} message - Mensaje de log.
  * @param {string} type - Tipo de log: 'info', 'progress', 'error'.
  */
 function addLog(episodeId, message, type = 'info') {
+    // Limpiar episodios antiguos si excedemos el límite global
+    if (!activeLogs.has(episodeId) && activeLogs.size >= MAX_ACTIVE_EPISODES) {
+        let oldestId = null;
+        let oldestTime = Infinity;
+        
+        for (const [id, entry] of activeLogs.entries()) {
+            const entryTime = entry.lastUpdate.getTime();
+            if (entryTime < oldestTime) {
+                oldestTime = entryTime;
+                oldestId = id;
+            }
+        }
+        
+        if (oldestId) {
+            activeLogs.delete(oldestId);
+        }
+    }
+    
     if (!activeLogs.has(episodeId)) {
         activeLogs.set(episodeId, { logs: [], lastUpdate: new Date() });
     }
     
+    const now = new Date();
     const logEntry = activeLogs.get(episodeId);
     logEntry.logs.push({
-        timestamp: new Date().toISOString(),
+        timestamp: now.toISOString(),
         message,
         type
     });
-    logEntry.lastUpdate = new Date();
+    logEntry.lastUpdate = now;
     
     // Limitar cantidad de logs
     if (logEntry.logs.length > MAX_LOGS_PER_EPISODE) {
@@ -158,17 +179,23 @@ async function startTranslation(episodeId, voice = 'es-ES-AlvaroNeural') {
  */
 async function performTranslation(episode, voice = 'es-ES-AlvaroNeural') {
     const inputPath = path.join(DOWNLOADS_DIR, episode.file_path);
-    const outputFileName = `${episode.youtube_id}_es.wav`;
+    // OPTIMIZACIÓN: Usar MP3 directamente (sin conversión WAV)
+    // Ahorra ~600MB RAM por episodio
+    const outputFileName = `${episode.youtube_id}_es.mp3`;
     const outputPath = path.join(DOWNLOADS_DIR, outputFileName);
     
-    // Verificar que el archivo de entrada existe
-    if (!fs.existsSync(inputPath)) {
+    // Verificar que el archivo de entrada existe (async)
+    try {
+        await fs.promises.access(inputPath);
+    } catch {
         throw new Error(`Archivo de entrada no encontrado: ${inputPath}`);
     }
     
-    // Determinar qué Python usar
+    // Determinar qué Python usar (async)
     let pythonPath = VENV_PYTHON;
-    if (!fs.existsSync(pythonPath)) {
+    try {
+        await fs.promises.access(pythonPath);
+    } catch {
         // Fallback a python3 del sistema
         pythonPath = 'python3';
         logInfo('Usando Python del sistema (venv no encontrado)');
@@ -242,10 +269,16 @@ async function performTranslation(episode, voice = 'es-ES-AlvaroNeural') {
             logError(`[Translation ${episode.youtube_id}] stderr:`, stderrText);
         });
         
-        pythonProcess.on('close', (code) => {
+        pythonProcess.on('close', async (code) => {
             if (code === 0) {
-                // Verificar que el archivo de salida existe
-                if (fs.existsSync(outputPath)) {
+                // Verificar que el archivo de salida existe (async)
+                let outputExists = false;
+                try {
+                    await fs.promises.access(outputPath);
+                    outputExists = true;
+                } catch {}
+                
+                if (outputExists) {
                     // Actualizar DB con estado ready
                     db.updateTranslationStatusById(episode.id, 'ready', outputFileName);
                     
@@ -359,19 +392,19 @@ async function sendPushNotification(userId, title, success) {
 
 /**
  * Elimina el archivo traducido de un episodio.
+ * Usa operación async con fire-and-forget para no bloquear.
  * @param {object} episode - Objeto del episodio.
  */
 function cleanupTranslatedFile(episode) {
     if (episode.translated_file_path) {
         const filePath = path.join(DOWNLOADS_DIR, episode.translated_file_path);
-        try {
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-                logInfo(`Archivo traducido eliminado: ${filePath}`);
-            }
-        } catch (err) {
-            logError(`Error eliminando archivo traducido ${filePath}:`, err);
-        }
+        fs.promises.unlink(filePath)
+            .then(() => logInfo(`Archivo traducido eliminado: ${filePath}`))
+            .catch(err => {
+                if (err.code !== 'ENOENT') {
+                    logError(`Error eliminando archivo traducido ${filePath}:`, err);
+                }
+            });
     }
 }
 

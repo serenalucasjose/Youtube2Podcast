@@ -38,29 +38,31 @@ def transcribe_audio(audio_path: str) -> str:
     
     from faster_whisper import WhisperModel
     
-    # Usar modelo tiny con cuantización int8 para mejor rendimiento en CPU
-    model = WhisperModel("tiny", device="cpu", compute_type="int8")
+    # Usar modelo tiny.en (optimizado para inglés, más rápido en RPi4)
+    model = WhisperModel("tiny.en", device="cpu", compute_type="int8")
     
     log_progress("stt", 20, "Transcribiendo audio...")
     
-    # Transcribir (asumimos que el audio está en inglés)
+    # Transcribir con beam_size=1 (greedy) para máxima velocidad
     segments, info = model.transcribe(
         audio_path,
         language="en",
-        beam_size=5,
-        vad_filter=True,  # Filtrar silencios para mejor rendimiento
+        beam_size=1,
+        best_of=1,
+        vad_filter=True,
         vad_parameters=dict(min_silence_duration_ms=500)
     )
     
-    # Concatenar todos los segmentos
+    # Procesar segmentos en streaming (sin cargar todo en memoria)
     full_text = ""
-    segment_list = list(segments)
-    total_segments = len(segment_list)
+    segment_count = 0
     
-    for i, segment in enumerate(segment_list):
+    for segment in segments:  # Generator, no list
+        segment_count += 1
         full_text += segment.text + " "
-        progress = 20 + int((i / max(total_segments, 1)) * 20)
-        log_progress("stt", progress, f"Procesando segmento {i+1}/{total_segments}")
+        if segment_count % 10 == 0:
+            progress = 20 + min(20, segment_count // 5)
+            log_progress("stt", progress, f"Procesando segmento {segment_count}...")
     
     full_text = full_text.strip()
     log_progress("stt", 40, f"Transcripción completada: {len(full_text)} caracteres")
@@ -105,16 +107,18 @@ def translate_text(text_en: str) -> str:
     if current_chunk:
         chunks.append(current_chunk.strip())
     
-    # Traducir cada chunk
-    translated_chunks = []
-    total_chunks = len(chunks)
+    # Traducir en batch para mayor eficiencia
+    valid_chunks = [c for c in chunks if c.strip()]
+    total_chunks = len(valid_chunks)
     
-    for i, chunk in enumerate(chunks):
-        if chunk:
-            result = translator(chunk, max_length=512)
-            translated_chunks.append(result[0]["translation_text"])
-        progress = 50 + int((i / max(total_chunks, 1)) * 15)
-        log_progress("translation", progress, f"Traduciendo chunk {i+1}/{total_chunks}")
+    if valid_chunks:
+        log_progress("translation", 52, f"Traduciendo {total_chunks} chunks en batch...")
+        # Batch translation (mucho más eficiente que uno por uno)
+        results = translator(valid_chunks, max_length=512, batch_size=4)
+        translated_chunks = [r["translation_text"] for r in results]
+        log_progress("translation", 63, f"Batch completado: {total_chunks} chunks traducidos")
+    else:
+        translated_chunks = []
     
     text_es = " ".join(translated_chunks)
     log_progress("translation", 65, f"Traducción completada: {len(text_es)} caracteres")
@@ -128,6 +132,9 @@ async def synthesize_speech_async(text_es: str, output_path: str, voice: str = "
     """
     Etapa 3: Text-to-Speech usando edge-tts (Microsoft Edge TTS).
     Genera audio en español a partir del texto traducido.
+    
+    OPTIMIZACIÓN: Guardamos directamente como MP3 sin conversión a WAV.
+    Esto ahorra ~600MB RAM y tiempo de CPU por no cargar audio en memoria.
     """
     log_progress("tts", 70, "Iniciando síntesis de voz...")
     
@@ -135,28 +142,13 @@ async def synthesize_speech_async(text_es: str, output_path: str, voice: str = "
     
     log_progress("tts", 75, f"Generando audio con voz {voice}...")
     
-    # Dividir texto largo en partes si es necesario
-    # edge-tts maneja bien textos largos, pero para progreso lo dividimos
+    # edge-tts genera MP3 directamente, no necesitamos conversión
     communicate = edge_tts.Communicate(text_es, voice)
     
-    # Generar audio
-    temp_mp3 = output_path.replace('.wav', '_temp.mp3')
-    await communicate.save(temp_mp3)
+    # Guardar directamente como MP3 (sin conversión intermedia)
+    await communicate.save(output_path)
     
-    log_progress("tts", 90, "Convirtiendo formato de audio...")
-    
-    # Convertir MP3 a WAV usando pydub
-    from pydub import AudioSegment
-    audio = AudioSegment.from_mp3(temp_mp3)
-    audio.export(output_path, format="wav")
-    
-    # Limpiar archivo temporal
-    try:
-        os.unlink(temp_mp3)
-    except:
-        pass
-    
-    log_progress("tts", 98, "Audio generado correctamente")
+    log_progress("tts", 98, "Audio MP3 generado correctamente")
 
 def synthesize_speech(text_es: str, output_path: str, voice: str = "es-ES-AlvaroNeural") -> None:
     """Wrapper síncrono para la función async de TTS."""
@@ -167,7 +159,7 @@ def main():
         description="Pipeline de traducción: Audio EN -> Audio ES"
     )
     parser.add_argument("input_audio", help="Ruta al archivo de audio de entrada (MP3/WAV)")
-    parser.add_argument("output_audio", help="Ruta al archivo de audio de salida (WAV)")
+    parser.add_argument("output_audio", help="Ruta al archivo de audio de salida (MP3)")
     parser.add_argument("--voice", default="es-ES-AlvaroNeural", 
                         help="Voz de Edge TTS a usar (ej: es-MX-JorgeNeural)")
     

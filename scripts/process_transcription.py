@@ -75,35 +75,39 @@ def transcribe_audio(audio_path: str, language: str) -> tuple[str, list]:
     
     from faster_whisper import WhisperModel
     
-    # Usar modelo tiny con cuantización int8 para mejor rendimiento en CPU
-    model = WhisperModel("tiny", device="cpu", compute_type="int8")
+    # Usar modelo tiny.en para inglés (más rápido), tiny para otros idiomas
+    model_name = "tiny.en" if language == "en" else "tiny"
+    model = WhisperModel(model_name, device="cpu", compute_type="int8")
     
     log_progress("stt", 20, f"Transcribiendo audio en {SUPPORTED_LANGUAGES.get(language, language)}...")
     
-    # Transcribir con el idioma especificado
+    # Transcribir con beam_size=1 (greedy) para máxima velocidad en RPi4
     segments, info = model.transcribe(
         audio_path,
         language=language,
-        beam_size=5,
+        beam_size=1,
+        best_of=1,
         vad_filter=True,
         vad_parameters=dict(min_silence_duration_ms=500)
     )
     
-    # Recolectar segmentos con timestamps
+    # Procesar segmentos en streaming (sin cargar todo en memoria)
     full_text = ""
     segments_data = []
-    segment_list = list(segments)
-    total_segments = len(segment_list)
+    segment_count = 0
     
-    for i, segment in enumerate(segment_list):
+    for segment in segments:  # Generator, no list
+        segment_count += 1
         full_text += segment.text + " "
         segments_data.append({
             "start": segment.start,
             "end": segment.end,
             "text": segment.text.strip()
         })
-        progress = 20 + int((i / max(total_segments, 1)) * 50)
-        log_progress("stt", progress, f"Procesando segmento {i+1}/{total_segments}")
+        # Reportar progreso cada 10 segmentos
+        if segment_count % 10 == 0:
+            progress = 20 + min(50, segment_count // 2)
+            log_progress("stt", progress, f"Procesando segmento {segment_count}...")
     
     full_text = full_text.strip()
     log_progress("stt", 70, f"Transcripción completada: {len(full_text)} caracteres, {len(segments_data)} segmentos")

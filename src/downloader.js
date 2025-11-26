@@ -45,36 +45,38 @@ const logInfo = (message) => {
     }
 };
 
-// Cleanup temp files for a specific videoId
-function cleanupTempFiles(videoId) {
+// Cleanup temp files for a specific videoId (async version)
+async function cleanupTempFiles(videoId) {
     try {
-        const files = fs.readdirSync(TEMP_DIR);
-        files.forEach(f => {
-            if (f.startsWith(videoId)) {
+        const files = await fs.promises.readdir(TEMP_DIR);
+        const deletePromises = files
+            .filter(f => f.startsWith(videoId))
+            .map(async f => {
                 const filePath = path.join(TEMP_DIR, f);
                 try {
-                    fs.unlinkSync(filePath);
+                    await fs.promises.unlink(filePath);
                     logInfo(`Cleaned up temp file: ${filePath}`);
                 } catch (e) {
                     logError(`Failed to delete temp file ${filePath}:`, e);
                 }
-            }
-        });
+            });
+        await Promise.all(deletePromises);
     } catch (e) {
         logError('Error reading temp directory for cleanup:', e);
     }
 }
 
-// Cleanup final output file if it exists (partial/corrupted)
-function cleanupOutputFile(videoId) {
+// Cleanup final output file if it exists (partial/corrupted) - async version
+async function cleanupOutputFile(videoId) {
     const outputPath = path.join(DOWNLOADS_DIR, `${videoId}.mp3`);
-    if (fs.existsSync(outputPath)) {
-        try {
-            fs.unlinkSync(outputPath);
-            logInfo(`Cleaned up output file: ${outputPath}`);
-        } catch (e) {
+    try {
+        await fs.promises.unlink(outputPath);
+        logInfo(`Cleaned up output file: ${outputPath}`);
+    } catch (e) {
+        if (e.code !== 'ENOENT') {
             logError(`Failed to delete output file ${outputPath}:`, e);
         }
+        // ENOENT = file doesn't exist, which is fine
     }
 }
 
@@ -127,11 +129,11 @@ async function processVideo(url, userId) {
         }
 
         // Start background process with retry logic
-        performDownloadWithRetry(url, videoId).catch(err => {
+        performDownloadWithRetry(url, videoId).catch(async err => {
             logError('Background download failed after retries:', err);
-            // Final cleanup on complete failure
-            cleanupTempFiles(videoId);
-            cleanupOutputFile(videoId);
+            // Final cleanup on complete failure (async)
+            await cleanupTempFiles(videoId);
+            await cleanupOutputFile(videoId);
             db.updateEpisodeStatus(videoId, 'error');
             progressEmitter.emit('progress', { videoId, status: 'error', message: err.message });
             
@@ -175,9 +177,9 @@ async function performDownloadWithRetry(url, videoId) {
             lastError = error;
             logError(`Download attempt ${attempt + 1} failed for ${videoId}:`, error);
             
-            // Cleanup before retry or final failure
-            cleanupTempFiles(videoId);
-            cleanupOutputFile(videoId);
+            // Cleanup before retry or final failure (async)
+            await cleanupTempFiles(videoId);
+            await cleanupOutputFile(videoId);
         }
     }
     
@@ -191,8 +193,8 @@ async function performDownload(url, videoId) {
 
     progressEmitter.emit('progress', { videoId, status: 'downloading_audio', percent: 30 });
     
-    // Cleanup any previous temp files for this video
-    cleanupTempFiles(videoId);
+    // Cleanup any previous temp files for this video (async)
+    await cleanupTempFiles(videoId);
 
     // Use yt-dlp's native capabilities for optimal performance:
     // - Extract audio directly to MP3
@@ -218,15 +220,17 @@ async function performDownload(url, videoId) {
         postprocessorArgs: 'ffmpeg:-id3v2_version 3',
     });
 
-    // Verify the file was created
-    if (!fs.existsSync(finalPath)) {
-        throw new Error('Output file was not created');
-    }
-
-    // Verify file has content (not empty/corrupted)
-    const stats = fs.statSync(finalPath);
-    if (stats.size < 1000) { // Less than 1KB is suspicious
-        throw new Error('Output file appears to be corrupted (too small)');
+    // Verify the file was created and has content (single stat call)
+    try {
+        const stats = await fs.promises.stat(finalPath);
+        if (stats.size < 1000) { // Less than 1KB is suspicious
+            throw new Error('Output file appears to be corrupted (too small)');
+        }
+    } catch (err) {
+        if (err.code === 'ENOENT') {
+            throw new Error('Output file was not created');
+        }
+        throw err;
     }
 
     // Update DB
