@@ -14,6 +14,10 @@ const transcriptionService = require('./transcription_service');
 const rssService = require('./rss_service');
 const aiWorker = require('./ai_worker');
 const packageJson = require('../package.json');
+const EventEmitter = require('events');
+
+// Event emitter for podcast IA progress
+const podcastIAEmitter = new EventEmitter();
 
 
 // Configure web-push with VAPID keys
@@ -177,6 +181,10 @@ app.get('/progress', requireAuth, (req, res) => {
         try {
             transcriptionService.transcriptionEmitter.removeListener('progress', onTranscriptionProgress);
         } catch (e) { /* ignore */ }
+        
+        try {
+            podcastIAEmitter.removeListener('progress', onPodcastIAProgress);
+        } catch (e) { /* ignore */ }
     };
 
     const onProgress = (data) => {
@@ -206,6 +214,15 @@ app.get('/progress', requireAuth, (req, res) => {
         }
     };
 
+    const onPodcastIAProgress = (data) => {
+        if (!isAlive) return;
+        try {
+            res.write(`data: ${JSON.stringify({ ...data, type: 'podcast-ia' })}\n\n`);
+        } catch (err) {
+            cleanup();
+        }
+    };
+
     // Register cleanup handlers BEFORE adding listeners
     req.on('close', cleanup);
     req.on('error', cleanup);
@@ -230,6 +247,7 @@ app.get('/progress', requireAuth, (req, res) => {
     downloader.progressEmitter.on('progress', onProgress);
     translationService.translationEmitter.on('progress', onTranslationProgress);
     transcriptionService.transcriptionEmitter.on('progress', onTranscriptionProgress);
+    podcastIAEmitter.on('progress', onPodcastIAProgress);
 });
 
 // Home: List episodes
@@ -821,13 +839,28 @@ async function generatePodcastInBackground(podcastId, category, voice, userId) {
     const outputFileName = `podcast_ia_${podcastId}.mp3`;
     const outputPath = path.join(downloadsDir, outputFileName);
     
+    // Helper function to emit progress
+    const emitProgress = (stage, percent, message) => {
+        podcastIAEmitter.emit('progress', {
+            podcastId,
+            status: 'processing',
+            stage,
+            percent,
+            message
+        });
+    };
+    
     try {
         console.log(`[Podcast IA] Starting generation for podcast ${podcastId}, category: ${category}`);
         
+        emitProgress('init', 5, 'Iniciando generación...');
+        
         // Wait for AI worker to be ready
+        emitProgress('waiting', 10, 'Esperando worker de IA...');
         await waitForAIWorkerReady();
         
         // 1. Fetch articles from RSS feeds
+        emitProgress('fetching', 20, 'Obteniendo artículos de RSS...');
         const articles = await rssService.prepareArticlesForPodcast(category, aiWorker, 5);
         
         if (articles.length === 0) {
@@ -835,14 +868,27 @@ async function generatePodcastInBackground(podcastId, category, voice, userId) {
         }
         
         console.log(`[Podcast IA] Fetched ${articles.length} articles`);
+        emitProgress('fetched', 30, `${articles.length} artículos obtenidos`);
         
         // 2. Generate podcast (script + audio) using AI worker
+        emitProgress('generating', 40, 'Generando script del podcast...');
         const result = await aiWorker.generatePodcast(articles, outputPath, voice);
         
+        emitProgress('audio', 90, 'Generando audio...');
         console.log(`[Podcast IA] Generated podcast: ${result.output_path}`);
         
         // 3. Update DB with success
+        emitProgress('finalizing', 95, 'Finalizando...');
         db.updateGeneratedPodcastStatus(podcastId, 'ready', outputFileName, result.script);
+        
+        // Emit completion
+        podcastIAEmitter.emit('progress', {
+            podcastId,
+            status: 'ready',
+            stage: 'done',
+            percent: 100,
+            message: 'Podcast generado exitosamente'
+        });
         
         // 4. Send push notification
         sendPodcastReadyNotification(userId, podcastId);
@@ -850,6 +896,15 @@ async function generatePodcastInBackground(podcastId, category, voice, userId) {
     } catch (error) {
         console.error(`[Podcast IA] Error generating podcast ${podcastId}:`, error);
         db.updateGeneratedPodcastStatus(podcastId, 'error');
+        
+        // Emit error
+        podcastIAEmitter.emit('progress', {
+            podcastId,
+            status: 'error',
+            stage: 'error',
+            percent: 0,
+            message: error.message || 'Error al generar podcast'
+        });
     }
 }
 

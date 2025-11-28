@@ -269,15 +269,22 @@ input[type="url"]:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2p
     color: #9ca3af; /* gray-400 */
 }
 
-/* Actions Row - Separate line, right-aligned */
+/* Actions Row - Separate line, centered on mobile, right-aligned on desktop */
 .card-actions-row {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center; /* Centered on mobile */
     gap: 0.5rem;
     margin-top: 0.5rem;
     padding-top: 0.5rem;
     border-top: 1px solid #e5e7eb; /* gray-200 for light mode */
+}
+
+/* Desktop: right-aligned */
+@media (min-width: 640px) {
+    .card-actions-row {
+        justify-content: flex-end;
+    }
 }
 
 .dark .card-actions-row {

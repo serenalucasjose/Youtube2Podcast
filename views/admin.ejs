@@ -148,6 +148,7 @@
             font-size: 1.1rem;
             width: 20px;
             text-align: center;
+            color: inherit;
         }
         
         .sidebar-footer {
@@ -365,6 +366,22 @@
             border-radius: 16px;
             overflow: hidden;
             transition: background 0.2s ease, border-color 0.2s ease;
+            max-height: 600px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .data-table-container .table-header {
+            position: sticky;
+            top: 0;
+            background: var(--card-bg);
+            z-index: 10;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .data-table-container table {
+            flex: 1;
         }
         
         html:not(.dark) .data-table-container {
@@ -479,6 +496,14 @@
         
         .action-btn.delete:hover {
             background: rgba(255, 107, 107, 0.15);
+        }
+        
+        /* Feed checkbox styling */
+        .feed-checkbox {
+            width: 1.25rem;
+            height: 1.25rem;
+            cursor: pointer;
+            accent-color: var(--accent-teal);
         }
         
         /* Forms */
@@ -947,9 +972,14 @@
         
         <div class="admin-content">
             <% if (typeof error !== 'undefined' && error) { %>
-                <div class="alert alert-error">
-                    <i class="bi bi-exclamation-circle-fill"></i>
-                    <%= error %>
+                <div class="alert alert-error flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                        <%= error %>
+                    </div>
+                    <button type="button" onclick="this.parentElement.remove()" class="text-red-300 hover:text-red-100 transition flex-shrink-0" title="Cerrar">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
                 </div>
             <% } %>
             
@@ -1284,13 +1314,51 @@
                     </form>
                 </div>
                 
+                <!-- Feeds Filters -->
+                <div class="form-card" style="margin-bottom: 1rem;">
+                    <h3 class="form-title">Filtros</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Categoría</label>
+                            <select id="filter-category" class="form-input">
+                                <option value="">Todas las categorías</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Idioma</label>
+                            <select id="filter-language" class="form-input">
+                                <option value="">Todos los idiomas</option>
+                                <option value="es">Español</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Buscar</label>
+                            <input type="text" id="filter-text" placeholder="Buscar por nombre o URL..." class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <button type="button" onclick="clearFilters()" class="btn btn-secondary" style="width: 100%;">
+                                <i class="bi bi-x-circle"></i> Limpiar Filtros
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Feeds Table -->
                 <div class="data-table-container">
                     <div class="table-header">
-                        <h3 class="table-title">
-                            Feeds Configurados
-                            <span class="badge" id="feeds-count">0</span>
-                        </h3>
+                        <div style="flex: 1;">
+                            <h3 class="table-title">
+                                Feeds Configurados
+                                <span class="badge" id="feeds-count">0</span>
+                                <span class="badge" id="feeds-filtered-count" style="margin-left: 0.5rem; display: none;"></span>
+                            </h3>
+                            <div id="feeds-bulk-actions" style="display: none; margin-top: 0.5rem; gap: 0.5rem; flex-wrap: wrap;">
+                                <button type="button" onclick="bulkDeleteFeeds()" class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                                    <i class="bi bi-trash3"></i> Eliminar Seleccionados (<span id="feeds-selected-count">0</span>)
+                                </button>
+                            </div>
+                        </div>
                         <button class="btn btn-secondary" onclick="loadFeeds()">
                             <i class="bi bi-arrow-clockwise"></i> Actualizar
                         </button>
@@ -1298,6 +1366,9 @@
                     <table class="data-table">
                         <thead>
                             <tr>
+                                <th style="width: 40px;">
+                                    <input type="checkbox" id="feeds-select-all" onchange="toggleAllFeeds(this.checked)">
+                                </th>
                                 <th>Nombre</th>
                                 <th>Categoría</th>
                                 <th>Idioma</th>
@@ -1307,7 +1378,7 @@
                         </thead>
                         <tbody id="feeds-table-body">
                             <tr>
-                                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
                                     Cargando feeds...
                                 </td>
                             </tr>
@@ -1641,6 +1712,7 @@
     // ===============================
     
     let feedsData = { feeds: [], categories: [], generatedPodcasts: [] };
+    let allFeeds = []; // Store all feeds for filtering
     
     // Load feeds and podcasts data
     async function loadFeeds() {
@@ -1649,6 +1721,8 @@
             if (!response.ok) throw new Error('Error loading feeds');
             
             feedsData = await response.json();
+            allFeeds = feedsData.feeds; // Store all feeds
+            populateCategoryFilter();
             renderFeedsTable();
             renderPodcastsTable();
         } catch (error) {
@@ -1656,26 +1730,75 @@
         }
     }
     
-    // Render feeds table
+    // Populate category filter dropdown
+    function populateCategoryFilter() {
+        const categorySelect = document.getElementById('filter-category');
+        if (!categorySelect) return;
+        
+        const categories = [...new Set(allFeeds.map(f => f.category))].sort();
+        categorySelect.innerHTML = '<option value="">Todas las categorías</option>' +
+            categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
+    }
+    
+    // Filter feeds based on current filter values
+    function getFilteredFeeds() {
+        const categoryFilter = document.getElementById('filter-category')?.value || '';
+        const languageFilter = document.getElementById('filter-language')?.value || '';
+        const textFilter = (document.getElementById('filter-text')?.value || '').toLowerCase();
+        
+        return allFeeds.filter(feed => {
+            const matchesCategory = !categoryFilter || feed.category === categoryFilter;
+            const matchesLanguage = !languageFilter || feed.language === languageFilter;
+            const matchesText = !textFilter || 
+                feed.name.toLowerCase().includes(textFilter) || 
+                feed.url.toLowerCase().includes(textFilter);
+            
+            return matchesCategory && matchesLanguage && matchesText;
+        });
+    }
+    
+    // Clear all filters
+    function clearFilters() {
+        document.getElementById('filter-category').value = '';
+        document.getElementById('filter-language').value = '';
+        document.getElementById('filter-text').value = '';
+        renderFeedsTable();
+    }
+    
+    // Render feeds table with filtering
     function renderFeedsTable() {
         const tbody = document.getElementById('feeds-table-body');
         const countBadge = document.getElementById('feeds-count');
+        const filteredCountBadge = document.getElementById('feeds-filtered-count');
         
-        countBadge.textContent = feedsData.feeds.length;
+        const filteredFeeds = getFilteredFeeds();
         
-        if (feedsData.feeds.length === 0) {
+        countBadge.textContent = allFeeds.length;
+        
+        if (filteredFeeds.length !== allFeeds.length) {
+            filteredCountBadge.textContent = `${filteredFeeds.length} mostrados`;
+            filteredCountBadge.style.display = 'inline-flex';
+        } else {
+            filteredCountBadge.style.display = 'none';
+        }
+        
+        if (filteredFeeds.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                        No hay feeds configurados. Agrega uno arriba.
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        ${allFeeds.length === 0 ? 'No hay feeds configurados. Agrega uno arriba.' : 'No hay feeds que coincidan con los filtros.'}
                     </td>
                 </tr>
             `;
+            updateFeedsBulkUI();
             return;
         }
         
-        tbody.innerHTML = feedsData.feeds.map(feed => `
+        tbody.innerHTML = filteredFeeds.map(feed => `
             <tr>
+                <td>
+                    <input type="checkbox" class="feed-checkbox" value="${feed.id}" onchange="updateFeedsBulkUI()">
+                </td>
                 <td style="font-weight: 500; color: var(--text-primary);">${escapeHtml(feed.name)}</td>
                 <td>
                     <span class="status-badge ready">${escapeHtml(feed.category)}</span>
@@ -1693,7 +1816,92 @@
                 </td>
             </tr>
         `).join('');
+        
+        updateFeedsBulkUI();
     }
+    
+    // Toggle all feeds selection
+    function toggleAllFeeds(checked) {
+        document.querySelectorAll('.feed-checkbox').forEach(cb => {
+            cb.checked = checked;
+        });
+        updateFeedsBulkUI();
+    }
+    
+    // Update bulk actions UI
+    function updateFeedsBulkUI() {
+        const checkboxes = document.querySelectorAll('.feed-checkbox:checked');
+        const count = checkboxes.length;
+        const bulkActions = document.getElementById('feeds-bulk-actions');
+        const selectedCount = document.getElementById('feeds-selected-count');
+        const selectAll = document.getElementById('feeds-select-all');
+        
+        if (selectedCount) {
+            selectedCount.textContent = count;
+        }
+        
+        if (bulkActions) {
+            bulkActions.style.display = count > 0 ? 'flex' : 'none';
+        }
+        
+        // Update select all checkbox state
+        if (selectAll) {
+            const allCheckboxes = document.querySelectorAll('.feed-checkbox');
+            const allChecked = allCheckboxes.length > 0 && allCheckboxes.length === checkboxes.length;
+            selectAll.checked = allChecked;
+            selectAll.indeterminate = count > 0 && count < allCheckboxes.length;
+        }
+    }
+    
+    // Bulk delete feeds
+    async function bulkDeleteFeeds() {
+        const checkboxes = document.querySelectorAll('.feed-checkbox:checked');
+        const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+        
+        if (ids.length === 0) {
+            alert('No hay feeds seleccionados');
+            return;
+        }
+        
+        if (!confirm(`¿Estás seguro de que deseas eliminar ${ids.length} feed(s)?`)) {
+            return;
+        }
+        
+        try {
+            // Delete all selected feeds
+            const deletePromises = ids.map(id => 
+                fetch(`/admin/feeds/delete/${id}`, { method: 'POST' })
+                    .then(res => res.ok ? res.json() : Promise.reject(new Error('Error al eliminar')))
+            );
+            
+            await Promise.all(deletePromises);
+            
+            // Reload feeds
+            loadFeeds();
+            alert(`${ids.length} feed(s) eliminado(s) correctamente`);
+        } catch (error) {
+            console.error('Error deleting feeds:', error);
+            alert('Error al eliminar algunos feeds');
+            loadFeeds(); // Reload anyway to sync state
+        }
+    }
+    
+    // Add event listeners for filters
+    document.addEventListener('DOMContentLoaded', () => {
+        const categoryFilter = document.getElementById('filter-category');
+        const languageFilter = document.getElementById('filter-language');
+        const textFilter = document.getElementById('filter-text');
+        
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', renderFeedsTable);
+        }
+        if (languageFilter) {
+            languageFilter.addEventListener('change', renderFeedsTable);
+        }
+        if (textFilter) {
+            textFilter.addEventListener('input', renderFeedsTable);
+        }
+    });
     
     // Render podcasts table
     function renderPodcastsTable() {
@@ -1830,6 +2038,12 @@
             }
         });
     });
+    
+    // Make functions available globally
+    window.clearFilters = clearFilters;
+    window.toggleAllFeeds = toggleAllFeeds;
+    window.updateFeedsBulkUI = updateFeedsBulkUI;
+    window.bulkDeleteFeeds = bulkDeleteFeeds;
 </script>
 </body>
 </html>

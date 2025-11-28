@@ -154,13 +154,15 @@
                     </button>
                     <span id="timer-badge" class="hidden text-[8px] bg-orange-500 text-white rounded px-1 py-0.5 font-medium"></span>
                     
+                    <!-- Podcast IA Link - Visible on all screens -->
+                    <a href="/podcast-ia" class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs sm:text-sm text-purple-500 hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 font-medium transition-colors" title="Podcast IA">
+                        <i class="bi bi-mic-fill" style="font-size: 1rem; color: currentColor;"></i>
+                        <span class="hidden sm:inline">Podcast IA</span>
+                        <span class="hidden sm:inline text-[10px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">Nuevo</span>
+                    </a>
+                    
                     <!-- User info and actions -->
                     <div class="flex items-center gap-1 sm:gap-2 ml-1 sm:ml-2 pl-1 sm:pl-2 border-l border-gray-300 dark:border-gray-600">
-                        <a href="/podcast-ia" class="hidden sm:flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs sm:text-sm text-purple-500 hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 font-medium transition-colors" title="Podcast IA">
-                            <i class="bi bi-mic-fill text-base"></i>
-                            <span class="hidden md:inline">Podcast IA</span>
-                            <span class="hidden md:inline text-[10px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">Nuevo</span>
-                        </a>
                         <span class="text-gray-500 dark:text-gray-400 text-xs hidden md:inline"><%= user %></span>
                         <span class="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300" title="Videos usados">
                             <%= episodeCount %>/<%= quotaLimit %>

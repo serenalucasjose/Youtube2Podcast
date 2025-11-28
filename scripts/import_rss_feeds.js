@@ -297,6 +297,10 @@ async function importFeeds() {
         
         console.log(`\n[Import] Total de feeds únicos: ${uniqueFeeds.length}`);
         
+        // Filtrar solo feeds en español
+        const spanishFeeds = uniqueFeeds.filter(feed => feed.language === 'es');
+        console.log(`[Import] Feeds en español: ${spanishFeeds.length}`);
+        
         // Preparar statement para insertar
         const insertStmt = db.prepare('INSERT OR IGNORE INTO rss_feeds (name, url, category, language) VALUES (?, ?, ?, ?)');
         const insertMany = db.transaction((feeds) => {
@@ -305,9 +309,9 @@ async function importFeeds() {
             }
         });
         
-        // Insertar feeds
-        console.log('[Import] Insertando feeds en la base de datos...');
-        insertMany(uniqueFeeds);
+        // Insertar solo feeds en español
+        console.log('[Import] Insertando feeds en español en la base de datos...');
+        insertMany(spanishFeeds);
         
         // Estadísticas
         const stats = db.prepare(`
