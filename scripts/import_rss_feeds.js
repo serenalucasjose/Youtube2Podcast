@@ -14,7 +14,26 @@ const xml2js = require('xml2js');
 // Importar db
 const dbPath = path.join(__dirname, '../data/youtube2podcast.db');
 const Database = require('better-sqlite3');
+
+// Asegurar que el directorio data existe
+const dataDir = path.join(__dirname, '../data');
+if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+}
+
 const db = new Database(dbPath);
+
+// Inicializar tabla rss_feeds si no existe
+db.exec(`
+  CREATE TABLE IF NOT EXISTS rss_feeds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
+    category TEXT NOT NULL,
+    language TEXT DEFAULT 'en',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
 
 /**
  * Descarga el contenido de una URL
