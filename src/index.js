@@ -15,6 +15,7 @@ const rssService = require('./rss_service');
 const aiWorker = require('./ai_worker');
 const packageJson = require('../package.json');
 const EventEmitter = require('events');
+const multer = require('multer');
 
 // Event emitter for podcast IA progress
 const podcastIAEmitter = new EventEmitter();
@@ -1034,10 +1035,197 @@ app.post('/admin/feeds', requireAdmin, (req, res) => {
 // Admin: Delete RSS feed
 app.post('/admin/feeds/delete/:id', requireAdmin, (req, res) => {
     try {
-        db.deleteRssFeed(req.params.id);
+        const id = req.params.id;
+        const result = db.deleteRssFeed(id);
+        
+        if (result.changes === 0) {
+            return res.status(404).json({ error: 'Feed no encontrado o ya fue eliminado' });
+        }
+        
         res.json({ success: true, message: 'Feed eliminado correctamente' });
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// Ensure temp directory exists for CSV uploads
+const tempDir = path.join(__dirname, '../downloads/temp');
+if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+}
+
+// Configure multer for CSV file uploads
+const upload = multer({
+    dest: tempDir,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB max
+    },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Solo se permiten archivos CSV'));
+        }
+    }
+});
+
+// Admin: Upload CSV file to import RSS feeds
+app.post('/admin/feeds/upload-csv', requireAdmin, upload.single('csvFile'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No se proporcionó ningún archivo' });
+    }
+
+    const filePath = req.file.path;
+    const results = {
+        total: 0,
+        success: 0,
+        errors: 0,
+        errorDetails: []
+    };
+
+    try {
+        // Read and parse CSV file
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        const lines = fileContent.split('\n').filter(line => line.trim());
+        
+        if (lines.length === 0) {
+            fs.unlinkSync(filePath); // Clean up temp file
+            return res.status(400).json({ error: 'El archivo CSV está vacío' });
+        }
+
+        // Parse header
+        const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const expectedColumns = ['nombre', 'url', 'categoria', 'idioma'];
+        
+        // Validate header
+        const missingColumns = expectedColumns.filter(col => !header.includes(col));
+        if (missingColumns.length > 0) {
+            fs.unlinkSync(filePath);
+            return res.status(400).json({ 
+                error: `Columnas faltantes en el CSV: ${missingColumns.join(', ')}. Columnas requeridas: ${expectedColumns.join(', ')}` 
+            });
+        }
+
+        // Get column indices
+        const nameIdx = header.indexOf('nombre');
+        const urlIdx = header.indexOf('url');
+        const categoryIdx = header.indexOf('categoria');
+        const languageIdx = header.indexOf('idioma');
+
+        // Process each row (skip header)
+        const feedsToInsert = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            results.total++;
+
+            // Parse CSV line (handle quoted fields)
+            const fields = [];
+            let currentField = '';
+            let inQuotes = false;
+            
+            for (let j = 0; j < line.length; j++) {
+                const char = line[j];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    fields.push(currentField.trim());
+                    currentField = '';
+                } else {
+                    currentField += char;
+                }
+            }
+            fields.push(currentField.trim()); // Add last field
+
+            if (fields.length < 4) {
+                results.errors++;
+                results.errorDetails.push({
+                    row: i + 1,
+                    error: 'Fila incompleta: faltan columnas'
+                });
+                continue;
+            }
+
+            const name = fields[nameIdx]?.trim();
+            const url = fields[urlIdx]?.trim();
+            const category = fields[categoryIdx]?.trim();
+            const language = fields[languageIdx]?.trim() || 'en';
+
+            // Validate fields
+            if (!name || !url || !category) {
+                results.errors++;
+                results.errorDetails.push({
+                    row: i + 1,
+                    error: 'Campos requeridos faltantes (nombre, url, categoria)'
+                });
+                continue;
+            }
+
+            // Validate URL format
+            try {
+                const urlObj = new URL(url);
+                if (!['http:', 'https:'].includes(urlObj.protocol)) {
+                    throw new Error('URL debe usar HTTP o HTTPS');
+                }
+            } catch (urlError) {
+                results.errors++;
+                results.errorDetails.push({
+                    row: i + 1,
+                    error: `URL inválida: ${urlError.message}`
+                });
+                continue;
+            }
+
+            feedsToInsert.push({
+                name,
+                url,
+                category,
+                language: language || 'en'
+            });
+        }
+
+        // Insert feeds in batch using transaction
+        const insertStmt = db.db.prepare('INSERT OR IGNORE INTO rss_feeds (name, url, category, language) VALUES (?, ?, ?, ?)');
+        const insertMany = db.db.transaction((feeds) => {
+            for (const feed of feeds) {
+                try {
+                    insertStmt.run(feed.name, feed.url, feed.category, feed.language);
+                    results.success++;
+                } catch (error) {
+                    results.errors++;
+                    results.errorDetails.push({
+                        row: 'N/A',
+                        feed: feed.name,
+                        error: error.message || 'Error al insertar feed'
+                    });
+                }
+            }
+        });
+
+        insertMany(feedsToInsert);
+
+        // Clean up temp file
+        fs.unlinkSync(filePath);
+
+        res.json({
+            success: true,
+            message: `Importación completada: ${results.success} exitosos, ${results.errors} errores de ${results.total} total`,
+            results
+        });
+
+    } catch (error) {
+        // Clean up temp file on error
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+        
+        console.error('[CSV Upload] Error:', error);
+        res.status(500).json({ 
+            error: 'Error procesando el archivo CSV',
+            details: error.message 
+        });
     }
 });
 

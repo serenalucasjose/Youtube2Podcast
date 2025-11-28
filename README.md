@@ -203,6 +203,76 @@ El sistema crea automáticamente usuarios al iniciar si no existen:
 
 **Nota**: Se recomienda cambiar estas contraseñas o crear nuevos usuarios desde el panel de administración (`/admin`).
 
+## Gestión de RSS Feeds
+
+La aplicación permite gestionar feeds RSS que se utilizan para generar podcasts IA. Puedes agregar feeds individualmente o importarlos en lote desde un archivo CSV.
+
+### Agregar Feeds Individualmente
+
+1. Accede al panel de administración (`/admin`)
+2. Ve a la sección **"RSS Feeds"**
+3. Completa el formulario con:
+   - **Nombre**: Nombre del feed (ej: "TechCrunch")
+   - **URL del Feed**: URL completa del feed RSS (ej: `https://techcrunch.com/feed/`)
+   - **Categoría**: Categoría del feed (ej: "Tecnología", "Noticias", "Ciencia")
+   - **Idioma**: Código de idioma (`es` para español, `en` para inglés)
+
+### Importar Feeds desde CSV
+
+Para importar múltiples feeds a la vez, puedes usar un archivo CSV con el siguiente formato:
+
+#### Formato del CSV
+
+El archivo CSV debe tener las siguientes columnas (en este orden):
+
+```csv
+nombre,url,categoria,idioma
+TechCrunch,https://techcrunch.com/feed/,Tecnología,en
+El País,https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada,Noticias,es
+BBC News,https://feeds.bbci.co.uk/news/rss.xml,Noticias,en
+```
+
+**Columnas requeridas:**
+- `nombre`: Nombre del feed RSS
+- `url`: URL completa del feed RSS (debe comenzar con `http://` o `https://`)
+- `categoria`: Categoría del feed
+- `idioma`: Código de idioma (`es`, `en`, `fr`, `de`, `pt`, etc.)
+
+**Notas importantes:**
+- La primera fila debe contener los encabezados de las columnas
+- Las URLs deben ser válidas y accesibles
+- Los feeds duplicados (misma URL) serán ignorados automáticamente
+- El tamaño máximo del archivo es 5MB
+- Si un campo contiene comas, debe estar entre comillas dobles
+
+#### Ejemplo de archivo CSV
+
+```csv
+nombre,url,categoria,idioma
+TechCrunch,https://techcrunch.com/feed/,Tecnología,en
+El País,https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada,Noticias,es
+BBC News,https://feeds.bbci.co.uk/news/rss.xml,Noticias,en
+The Verge,https://www.theverge.com/rss/index.xml,Tecnología,en
+Xataka,https://feeds.weblogssl.com/xataka2,Tecnología,es
+```
+
+#### Pasos para importar
+
+1. Accede al panel de administración (`/admin`)
+2. Ve a la sección **"RSS Feeds"**
+3. En el formulario **"Importar Feeds RSS desde CSV"**, haz clic en **"Elegir archivo"**
+4. Selecciona tu archivo CSV
+5. Haz clic en **"Subir e Importar CSV"**
+6. Revisa los resultados de la importación:
+   - Se mostrará cuántos feeds se importaron exitosamente
+   - Si hay errores, podrás ver los detalles de cada fila que falló
+
+**Validaciones:**
+- El archivo debe ser un CSV válido
+- Todas las columnas requeridas deben estar presentes
+- Las URLs deben ser válidas (HTTP o HTTPS)
+- Los campos requeridos (nombre, url, categoria) no pueden estar vacíos
+
 ## Estructura de Carpetas
 
 ```

@@ -1314,6 +1314,31 @@
                     </form>
                 </div>
                 
+                <!-- Import CSV Form -->
+                <div class="form-card">
+                    <h3 class="form-title">Importar Feeds RSS desde CSV</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+                        <i class="bi bi-info-circle"></i> Sube un archivo CSV con el formato: <code style="background: var(--bg-tertiary); padding: 0.2rem 0.4rem; border-radius: 4px;">nombre,url,categoria,idioma</code>
+                    </p>
+                    <form id="upload-csv-form" enctype="multipart/form-data">
+                        <div class="form-grid">
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label>Archivo CSV</label>
+                                <input type="file" name="csvFile" accept=".csv,text/csv" required class="form-input" id="csv-file-input">
+                                <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+                                    Tamaño máximo: 5MB
+                                </small>
+                            </div>
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <button type="submit" class="btn btn-primary" style="width: 100%;" id="upload-csv-btn">
+                                    <i class="bi bi-upload"></i> Subir e Importar CSV
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="csv-upload-result" style="margin-top: 1rem; display: none;"></div>
+                </div>
+                
                 <!-- Feeds Filters -->
                 <div class="form-card" style="margin-bottom: 1rem;">
                     <h3 class="form-title">Filtros</h3>
@@ -1354,7 +1379,7 @@
                                 <span class="badge" id="feeds-filtered-count" style="margin-left: 0.5rem; display: none;"></span>
                             </h3>
                             <div id="feeds-bulk-actions" style="display: none; margin-top: 0.5rem; gap: 0.5rem; flex-wrap: wrap;">
-                                <button type="button" onclick="bulkDeleteFeeds()" class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                                <button type="button" id="bulk-delete-feeds-btn" class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
                                     <i class="bi bi-trash3"></i> Eliminar Seleccionados (<span id="feeds-selected-count">0</span>)
                                 </button>
                             </div>
@@ -1855,34 +1880,89 @@
     
     // Bulk delete feeds
     async function bulkDeleteFeeds() {
-        const checkboxes = document.querySelectorAll('.feed-checkbox:checked');
-        const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
-        
-        if (ids.length === 0) {
-            alert('No hay feeds seleccionados');
-            return;
-        }
-        
-        if (!confirm(`¿Estás seguro de que deseas eliminar ${ids.length} feed(s)?`)) {
-            return;
-        }
+        const bulkActions = document.getElementById('feeds-bulk-actions');
+        let originalHTML = null;
         
         try {
-            // Delete all selected feeds
-            const deletePromises = ids.map(id => 
-                fetch(`/admin/feeds/delete/${id}`, { method: 'POST' })
-                    .then(res => res.ok ? res.json() : Promise.reject(new Error('Error al eliminar')))
-            );
+            // Get IDs BEFORE any DOM manipulation
+            const checkboxes = document.querySelectorAll('.feed-checkbox:checked');
             
-            await Promise.all(deletePromises);
+            const ids = Array.from(checkboxes)
+                .map(cb => {
+                    const value = cb.value;
+                    const parsed = parseInt(value);
+                    if (isNaN(parsed)) {
+                        return null;
+                    }
+                    return parsed;
+                })
+                .filter(id => id !== null);
+            
+            if (ids.length === 0) {
+                alert('No hay feeds seleccionados');
+                return;
+            }
+            
+            // Show loading state
+            if (bulkActions) {
+                originalHTML = bulkActions.innerHTML;
+                bulkActions.innerHTML = '<i class="bi bi-hourglass-split"></i> Eliminando...';
+                bulkActions.style.pointerEvents = 'none';
+            }
+            
+            // Delete all selected feeds one by one
+            const results = [];
+            
+            for (let i = 0; i < ids.length; i++) {
+                const id = ids[i];
+                
+                try {
+                    const url = `/admin/feeds/delete/${id}`;
+                    const response = await fetch(url, { 
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+                        results.push({ id, status: 'rejected', error: errorData.error || 'Error desconocido' });
+                    } else {
+                        await response.json();
+                        results.push({ id, status: 'fulfilled' });
+                    }
+                } catch (error) {
+                    results.push({ id, status: 'rejected', error: error.message });
+                }
+            }
+            
+            const successful = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected').length;
             
             // Reload feeds
-            loadFeeds();
-            alert(`${ids.length} feed(s) eliminado(s) correctamente`);
+            await loadFeeds();
+            
+            // Show result message
+            if (failed === 0) {
+                alert(`${successful} feed(s) eliminado(s) correctamente`);
+            } else {
+                const failedIds = results.filter(r => r.status === 'rejected').map(r => r.id).join(', ');
+                alert(`${successful} feed(s) eliminado(s), ${failed} fallaron (IDs: ${failedIds}). Revisa la consola para más detalles.`);
+            }
         } catch (error) {
-            console.error('Error deleting feeds:', error);
-            alert('Error al eliminar algunos feeds');
+            alert('Error al eliminar feeds: ' + error.message);
             loadFeeds(); // Reload anyway to sync state
+        } finally {
+            // Restore button state
+            if (bulkActions) {
+                if (originalHTML) {
+                    bulkActions.innerHTML = originalHTML;
+                } else {
+                    bulkActions.innerHTML = '<button type="button" id="bulk-delete-feeds-btn" class="btn btn-danger" style="padding: 0.5rem 1rem; font-size: 0.85rem;"><i class="bi bi-trash3"></i> Eliminar Seleccionados (<span id="feeds-selected-count">0</span>)</button>';
+                }
+                bulkActions.style.pointerEvents = '';
+            }
         }
     }
     
@@ -1987,6 +2067,99 @@
         }
     });
     
+    // CSV upload form submission
+    document.getElementById('upload-csv-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const fileInput = document.getElementById('csv-file-input');
+        const uploadBtn = document.getElementById('upload-csv-btn');
+        const resultDiv = document.getElementById('csv-upload-result');
+        
+        if (!fileInput.files || !fileInput.files[0]) {
+            alert('Por favor selecciona un archivo CSV');
+            return;
+        }
+        
+        // Validate file size (5MB)
+        if (fileInput.files[0].size > 5 * 1024 * 1024) {
+            alert('El archivo es demasiado grande. Tamaño máximo: 5MB');
+            return;
+        }
+        
+        // Disable button and show loading
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
+        resultDiv.style.display = 'none';
+        
+        try {
+            const response = await fetch('/admin/feeds/upload-csv', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            // Show result
+            resultDiv.style.display = 'block';
+            
+            if (response.ok) {
+                resultDiv.className = 'alert alert-success';
+                resultDiv.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <div>
+                            <strong>${result.message}</strong>
+                            ${result.results.errorDetails.length > 0 ? `
+                                <details style="margin-top: 0.5rem;">
+                                    <summary style="cursor: pointer; color: var(--text-secondary); font-size: 0.85rem;">
+                                        Ver detalles de errores (${result.results.errorDetails.length})
+                                    </summary>
+                                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+                                        ${result.results.errorDetails.slice(0, 10).map(err => 
+                                            `<li>Fila ${err.row || 'N/A'}: ${escapeHtml(err.error)}${err.feed ? ` (${escapeHtml(err.feed)})` : ''}</li>`
+                                        ).join('')}
+                                        ${result.results.errorDetails.length > 10 ? `<li>... y ${result.results.errorDetails.length - 10} más</li>` : ''}
+                                    </ul>
+                                </details>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                // Reload feeds table
+                loadFeeds();
+                
+                // Reset form
+                e.target.reset();
+            } else {
+                resultDiv.className = 'alert alert-error';
+                resultDiv.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                        <div>
+                            <strong>Error:</strong> ${escapeHtml(result.error || 'Error desconocido')}
+                            ${result.details ? `<br><small>${escapeHtml(result.details)}</small>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error uploading CSV:', error);
+            resultDiv.className = 'alert alert-error';
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                    <div><strong>Error de conexión:</strong> ${escapeHtml(error.message)}</div>
+                </div>
+            `;
+        } finally {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="bi bi-upload"></i> Subir e Importar CSV';
+        }
+    });
+    
     // Delete feed
     async function deleteFeed(id) {
         if (!confirm('¿Eliminar este feed?')) return;
@@ -2044,6 +2217,20 @@
     window.toggleAllFeeds = toggleAllFeeds;
     window.updateFeedsBulkUI = updateFeedsBulkUI;
     window.bulkDeleteFeeds = bulkDeleteFeeds;
+    
+    // Use event delegation for bulk delete button (works even if button is recreated)
+    document.addEventListener('click', function(e) {
+        const target = e.target;
+        const button = target.closest('#bulk-delete-feeds-btn');
+        
+        if (button || target.id === 'bulk-delete-feeds-btn') {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            bulkDeleteFeeds();
+            return false;
+        }
+    }, false);
 </script>
 </body>
 </html>
