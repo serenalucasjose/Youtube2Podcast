@@ -617,6 +617,40 @@
                 }
             } else if (data.status === 'error') {
                 updateCardToError(data.videoId);
+            } else if (data.status === 'downloading') {
+                // Handle download progress updates
+                updateDownloadProgress(data.videoId, data.percent, data.stage);
+            }
+        }
+        
+        // Update download progress bar in the card
+        function updateDownloadProgress(videoId, percent, stage) {
+            const card = document.querySelector(`.episode-card[data-youtube-id="${videoId}"]`);
+            if (!card) {
+                console.log('Card not found for videoId:', videoId);
+                return;
+            }
+            
+            const progressBar = card.querySelector('.download-progress-bar');
+            const percentText = card.querySelector('.download-percent');
+            const stageText = card.querySelector('.download-stage');
+            
+            console.log('Updating progress:', videoId, percent, stage, progressBar);
+            
+            if (progressBar) {
+                progressBar.style.width = percent + '%';
+            }
+            if (percentText) {
+                percentText.textContent = percent + '%';
+            }
+            if (stageText) {
+                let stageLabel = 'Descargando...';
+                if (stage === 'converting') {
+                    stageLabel = 'Convirtiendo a MP3...';
+                } else if (stage === 'finalizing') {
+                    stageLabel = 'Finalizando...';
+                }
+                stageText.textContent = stageLabel;
             }
         }
         

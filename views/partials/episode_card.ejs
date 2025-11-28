@@ -12,7 +12,7 @@
     </div>
 
     <!-- Content (Middle) -->
-    <div class="p-4">
+    <div class="p-4 flex flex-col">
         <div class="flex justify-between items-start">
             <h3 class="episode-title" title="<%= episode.title %>">
                 <%= episode.title %>
@@ -27,74 +27,19 @@
                 </span>
             </span>
         </div>
-        
-        <!-- Actions Row -->
-        <div class="card-actions-row">
-            <% if (episode.status === 'ready') { %>
-                <!-- Translation Actions -->
-                <% if (episode.translation_status === 'ready' && episode.translated_file_path) { %>
-                    <!-- Download Translated -->
-                    <a href="/download-translated/<%= episode.id %>" class="text-green-400 hover:text-green-300 transition" title="Descargar en Español">
-                        <i class="bi bi-translate"></i>
-                    </a>
-                <% } else if (episode.translation_status === 'processing') { %>
-                    <!-- Translation Processing -->
-                    <span class="text-yellow-400" title="Traduciendo...">
-                        <i class="bi bi-translate animate-pulse"></i>
-                    </span>
-                <% } else if (episode.translation_status === 'error') { %>
-                    <!-- Translation Error - Retry -->
-                    <button type="button" onclick="openVoiceModal('<%= episode.id %>')" class="text-red-400 hover:text-red-300 transition" title="Error en traducción - Reintentar">
-                        <i class="bi bi-translate"></i>
-                    </button>
-                <% } else { %>
-                    <!-- Start Translation -->
-                    <button type="button" onclick="openVoiceModal('<%= episode.id %>')" class="text-gray-400 hover:text-yellow-400 transition" title="Doblar al Español">
-                        <i class="bi bi-translate"></i>
-                    </button>
-                <% } %>
-                
-                <!-- Transcription Actions -->
-                <% if (episode.transcription_status === 'ready' && episode.transcription_file_path) { %>
-                    <!-- Download Transcription -->
-                    <a href="/download-transcription/<%= episode.id %>" class="text-purple-400 hover:text-purple-300 transition" title="Descargar Transcripción PDF">
-                        <i class="bi bi-file-earmark-pdf-fill"></i>
-                    </a>
-                <% } else if (episode.transcription_status === 'processing') { %>
-                    <!-- Transcription Processing -->
-                    <span class="text-purple-400" title="Transcribiendo...">
-                        <i class="bi bi-file-earmark-text animate-pulse"></i>
-                    </span>
-                <% } else if (episode.transcription_status === 'error') { %>
-                    <!-- Transcription Error - Retry -->
-                    <button type="button" onclick="openTranscriptionModal('<%= episode.id %>')" class="text-red-400 hover:text-red-300 transition" title="Error en transcripción - Reintentar">
-                        <i class="bi bi-file-earmark-text"></i>
-                    </button>
-                <% } else { %>
-                    <!-- Start Transcription -->
-                    <button type="button" onclick="openTranscriptionModal('<%= episode.id %>')" class="text-gray-400 hover:text-purple-400 transition" title="Obtener Transcripción">
-                        <i class="bi bi-file-earmark-text"></i>
-                    </button>
-                <% } %>
-                
-                <!-- Open Native -->
-                <a href="/downloads/<%= episode.file_path %>" target="_blank" class="text-gray-400 hover:text-white transition" title="Abrir nativo">
-                    <i class="bi bi-box-arrow-up-right"></i>
-                </a>
-                <!-- Download -->
-                <a href="/download/<%= episode.id %>" class="text-gray-400 hover:text-blue-400 transition" title="Descargar Original">
-                    <i class="bi bi-download"></i>
-                </a>
-            <% } else if (isProcessing) { %>
-                <!-- Processing Spinner icon -->
-                <i class="bi bi-arrow-repeat text-gray-500 animate-spin"></i>
-            <% } %>
-            
-            <!-- Delete Button -->
-            <button type="button" onclick="confirmDelete('<%= episode.id %>')" class="text-gray-400 hover:text-red-500 transition" title="Borrar">
-                <i class="bi bi-trash3"></i>
-            </button>
-        </div>
+
+        <!-- Download Progress Bar (visible during processing) -->
+        <% if (isProcessing) { %>
+            <div class="mt-3">
+                <div class="flex items-center justify-between text-xs text-gray-400 mb-2">
+                    <span class="download-stage">Descargando...</span>
+                    <span class="download-percent font-semibold text-white">0%</span>
+                </div>
+                <div class="w-full bg-gray-600 rounded-full h-4">
+                    <div class="download-progress-bar bg-gradient-to-r from-red-500 to-orange-500 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+        <% } %>
 
         <!-- Translation Logs (visible during translation) -->
         <% if (isTranslating) { %>
@@ -170,6 +115,74 @@
                 </audio>
             </div>
         <% } %>
+
+        <!-- Actions Row (at bottom for better mobile layout) -->
+        <div class="card-actions-row mt-auto pt-2">
+            <% if (episode.status === 'ready') { %>
+                <!-- Translation Actions -->
+                <% if (episode.translation_status === 'ready' && episode.translated_file_path) { %>
+                    <!-- Download Translated -->
+                    <a href="/download-translated/<%= episode.id %>" class="text-green-400 hover:text-green-300 transition" title="Descargar en Español">
+                        <i class="bi bi-translate"></i>
+                    </a>
+                <% } else if (episode.translation_status === 'processing') { %>
+                    <!-- Translation Processing -->
+                    <span class="text-yellow-400" title="Traduciendo...">
+                        <i class="bi bi-translate animate-pulse"></i>
+                    </span>
+                <% } else if (episode.translation_status === 'error') { %>
+                    <!-- Translation Error - Retry -->
+                    <button type="button" onclick="openVoiceModal('<%= episode.id %>')" class="text-red-400 hover:text-red-300 transition" title="Error en traducción - Reintentar">
+                        <i class="bi bi-translate"></i>
+                    </button>
+                <% } else { %>
+                    <!-- Start Translation -->
+                    <button type="button" onclick="openVoiceModal('<%= episode.id %>')" class="text-gray-400 hover:text-yellow-400 transition" title="Doblar al Español">
+                        <i class="bi bi-translate"></i>
+                    </button>
+                <% } %>
+                
+                <!-- Transcription Actions -->
+                <% if (episode.transcription_status === 'ready' && episode.transcription_file_path) { %>
+                    <!-- Download Transcription -->
+                    <a href="/download-transcription/<%= episode.id %>" class="text-purple-400 hover:text-purple-300 transition" title="Descargar Transcripción PDF">
+                        <i class="bi bi-file-earmark-pdf-fill"></i>
+                    </a>
+                <% } else if (episode.transcription_status === 'processing') { %>
+                    <!-- Transcription Processing -->
+                    <span class="text-purple-400" title="Transcribiendo...">
+                        <i class="bi bi-file-earmark-text animate-pulse"></i>
+                    </span>
+                <% } else if (episode.transcription_status === 'error') { %>
+                    <!-- Transcription Error - Retry -->
+                    <button type="button" onclick="openTranscriptionModal('<%= episode.id %>')" class="text-red-400 hover:text-red-300 transition" title="Error en transcripción - Reintentar">
+                        <i class="bi bi-file-earmark-text"></i>
+                    </button>
+                <% } else { %>
+                    <!-- Start Transcription -->
+                    <button type="button" onclick="openTranscriptionModal('<%= episode.id %>')" class="text-gray-400 hover:text-purple-400 transition" title="Obtener Transcripción">
+                        <i class="bi bi-file-earmark-text"></i>
+                    </button>
+                <% } %>
+                
+                <!-- Open Native -->
+                <a href="/downloads/<%= episode.file_path %>" target="_blank" class="text-gray-400 hover:text-white transition" title="Abrir nativo">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                </a>
+                <!-- Download -->
+                <a href="/download/<%= episode.id %>" class="text-gray-400 hover:text-blue-400 transition" title="Descargar Original">
+                    <i class="bi bi-download"></i>
+                </a>
+            <% } else if (isProcessing) { %>
+                <!-- Processing Spinner icon -->
+                <i class="bi bi-arrow-repeat text-gray-500 animate-spin"></i>
+            <% } %>
+            
+            <!-- Delete Button -->
+            <button type="button" onclick="confirmDelete('<%= episode.id %>')" class="text-gray-400 hover:text-red-500 transition" title="Borrar">
+                <i class="bi bi-trash3"></i>
+            </button>
+        </div>
     </div>
 
     <!-- Thumbnail (Right) -->

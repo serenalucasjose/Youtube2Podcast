@@ -191,17 +191,13 @@ async function performDownload(url, videoId) {
     const outputFileName = `${videoId}.mp3`;
     const finalPath = path.join(DOWNLOADS_DIR, outputFileName);
 
-    progressEmitter.emit('progress', { videoId, status: 'downloading_audio', percent: 30 });
+    progressEmitter.emit('progress', { videoId, status: 'downloading', percent: 0 });
     
     // Cleanup any previous temp files for this video (async)
     await cleanupTempFiles(videoId);
 
-    // Use yt-dlp's native capabilities for optimal performance:
-    // - Extract audio directly to MP3
-    // - Embed thumbnail automatically (yt-dlp handles WebP conversion internally)
-    // - Add metadata
-    // - Use concurrent fragments for faster downloads (especially for long videos)
-    await youtubedl(url, {
+    // Use youtubedl.exec to get access to the subprocess and parse progress from stdout
+    const options = {
         extractAudio: true,
         audioFormat: 'mp3',
         audioQuality: 2, // VBR quality (0=best, 9=worst), 2 is good balance
@@ -218,7 +214,61 @@ async function performDownload(url, videoId) {
         convertThumbnails: 'jpg',
         // Postprocessor args to ensure proper ID3 tags
         postprocessorArgs: 'ffmpeg:-id3v2_version 3',
-    });
+        // Enable progress output
+        progress: true,
+        newline: true,
+    };
+
+    // Use exec to get subprocess with stdout/stderr access
+    const subprocess = youtubedl.exec(url, options);
+    
+    let lastEmittedPercent = -1;
+    
+    // Handler function for parsing progress output
+    const parseProgress = (data) => {
+        const output = data.toString();
+        // Match patterns like "[download]  45.6% of" or "[download] 100% of"
+        const downloadMatch = output.match(/\[download\]\s+(\d+(?:\.\d+)?)%/);
+        if (downloadMatch) {
+            const percent = Math.round(parseFloat(downloadMatch[1]));
+            // Only emit if percent changed (avoid flooding)
+            if (percent !== lastEmittedPercent) {
+                lastEmittedPercent = percent;
+                progressEmitter.emit('progress', { 
+                    videoId, 
+                    status: 'downloading', 
+                    percent,
+                    stage: 'download'
+                });
+                // logInfo(`Download progress [${videoId}]: ${percent}%`);
+            }
+        }
+        
+        // Detect post-processing stages
+        if (output.includes('[ExtractAudio]') || output.includes('[ffmpeg]')) {
+            progressEmitter.emit('progress', { 
+                videoId, 
+                status: 'downloading', 
+                percent: 95,
+                stage: 'converting'
+            });
+        }
+        if (output.includes('[EmbedThumbnail]') || output.includes('[Metadata]')) {
+            progressEmitter.emit('progress', { 
+                videoId, 
+                status: 'downloading', 
+                percent: 98,
+                stage: 'finalizing'
+            });
+        }
+    };
+    
+    // Parse both stdout and stderr (yt-dlp outputs progress to stderr)
+    subprocess.stdout.on('data', parseProgress);
+    subprocess.stderr.on('data', parseProgress);
+
+    // Wait for the process to complete
+    await subprocess;
 
     // Verify the file was created and has content (single stat call)
     try {
