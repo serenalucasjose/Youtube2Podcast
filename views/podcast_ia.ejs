@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Podcast IA - Youtube2Podcast</title>
+    <link rel="stylesheet" href="/css/styles.css?v=<%= appVersion %>">
+    <link rel="stylesheet" href="/css/custom.css?v=<%= appVersion %>">
+    <link rel="stylesheet" href="/css/icons.css?v=<%= appVersion %>">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#dc2626">
+    <link rel="icon" type="image/png" href="/icons/logo.png">
+    <link rel="apple-touch-icon" href="/icons/logo.png">
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+    <style>
+        .podcast-card {
+            background: linear-gradient(145deg, rgba(168, 85, 247, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .podcast-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(168, 85, 247, 0.15);
+        }
+        
+        .podcast-card.processing {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .podcast-header {
+            background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 100%);
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .podcast-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .podcast-title {
+            flex: 1;
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .podcast-body {
+            padding: 1.5rem;
+        }
+        
+        .podcast-meta {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .podcast-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        
+        .podcast-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        
+        .podcast-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .podcast-btn.primary {
+            background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 100%);
+            color: white;
+        }
+        
+        .podcast-btn.primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+        }
+        
+        .podcast-btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .podcast-btn.secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+        
+        .podcast-btn.danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        
+        .podcast-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+        
+        .generate-card {
+            background: linear-gradient(145deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+            border: 2px dashed rgba(34, 197, 94, 0.3);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .generate-card h3 {
+            color: #22c55e;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .generate-card p {
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .generate-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .generate-form select,
+        .generate-form button {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+        
+        .generate-form select {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .generate-form select:focus {
+            outline: none;
+            border-color: #22c55e;
+        }
+        
+        .generate-form button {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .generate-form button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        }
+        
+        .generate-form button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-badge.ready { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+        .status-badge.processing { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+        .status-badge.error { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+        
+        .quota-info {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .quota-info strong {
+            color: #a855f7;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        
+        /* Custom Audio Player for Podcasts */
+        .podcast-player {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        
+        .podcast-player audio {
+            width: 100%;
+            height: 40px;
+        }
+        
+        /* Light mode adjustments */
+        html:not(.dark) .podcast-card {
+            background: linear-gradient(145deg, rgba(168, 85, 247, 0.08) 0%, rgba(139, 92, 246, 0.03) 100%);
+        }
+        
+        html:not(.dark) .podcast-meta {
+            color: rgba(0, 0, 0, 0.5);
+        }
+        
+        html:not(.dark) .podcast-btn.secondary {
+            background: rgba(0, 0, 0, 0.05);
+            color: rgba(0, 0, 0, 0.7);
+            border-color: rgba(0, 0, 0, 0.1);
+        }
+        
+        html:not(.dark) .generate-card {
+            background: linear-gradient(145deg, rgba(34, 197, 94, 0.08) 0%, rgba(16, 185, 129, 0.03) 100%);
+        }
+        
+        html:not(.dark) .generate-card p {
+            color: rgba(0, 0, 0, 0.5);
+        }
+        
+        html:not(.dark) .generate-form select {
+            background: rgba(0, 0, 0, 0.05);
+            color: #333;
+        }
+        
+        html:not(.dark) .quota-info {
+            background: rgba(0, 0, 0, 0.03);
+            color: rgba(0, 0, 0, 0.6);
+        }
+        
+        html:not(.dark) .empty-state {
+            color: rgba(0, 0, 0, 0.4);
+        }
+        
+        html:not(.dark) .podcast-player {
+            background: rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col transition-colors duration-200">
+
+    <nav class="bg-white dark:bg-gray-800 shadow-lg sticky top-0 z-50 transition-colors duration-200">
+        <div class="max-w-7xl mx-auto px-4 lg:px-8">
+            <div class="flex justify-between py-3 items-center">
+                <div class="flex items-center gap-3">
+                    <a href="/" class="flex items-center gap-2">
+                        <img src="/icons/logo.png" alt="Youtube2Podcast" class="w-10 h-10 rounded-sm">
+                        <span class="font-semibold text-lg hidden sm:inline">Youtube2Podcast</span>
+                    </a>
+                    <span class="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded font-medium">Podcast IA</span>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <a href="/" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex items-center gap-1">
+                        <i class="bi bi-arrow-left"></i>
+                        <span class="hidden sm:inline">Volver</span>
+                    </a>
+                    <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
+                        <a href="/admin" class="text-sm text-purple-500 hover:text-purple-400">Admin</a>
+                    <% } %>
+                    <span class="text-gray-500 dark:text-gray-400 text-sm"><%= user %></span>
+                    <a href="/logout" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Salir</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-4xl">
+        
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="mb-6 bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                <i class="bi bi-exclamation-circle"></i>
+                <%= error %>
+            </div>
+        <% } %>
+        
+        <% if (typeof success !== 'undefined' && success) { %>
+            <div class="mb-6 bg-green-900/50 border border-green-500 text-green-200 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                <i class="bi bi-check-circle"></i>
+                <%= success %>
+            </div>
+        <% } %>
+
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                <i class="bi bi-mic-fill"></i> Podcast IA
+            </h1>
+            <p class="text-gray-500 dark:text-gray-400">
+                Genera podcasts automáticos a partir de noticias RSS
+            </p>
+        </div>
+        
+        <!-- Quota Info -->
+        <div class="quota-info">
+            Podcasts generados: <strong><%= podcastCount %>/<%= podcastLimit %></strong>
+        </div>
+
+        <!-- Generate New Podcast -->
+        <% if (categories.length > 0 && podcastCount < podcastLimit) { %>
+            <div class="generate-card mb-8">
+                <h3><i class="bi bi-magic"></i> Generar Nuevo Podcast</h3>
+                <p>Selecciona una categoría y generaremos un podcast con las últimas noticias.</p>
+                
+                <form action="/podcast-ia/generate" method="POST" class="generate-form">
+                    <select name="category" required>
+                        <option value="">Seleccionar categoría...</option>
+                        <% categories.forEach(cat => { %>
+                            <option value="<%= cat %>"><%= cat %></option>
+                        <% }); %>
+                    </select>
+                    
+                    <select name="voice">
+                        <option value="es-ES-AlvaroNeural">🇪🇸 Álvaro (España)</option>
+                        <option value="es-ES-ElviraNeural">🇪🇸 Elvira (España)</option>
+                        <option value="es-MX-JorgeNeural">🇲🇽 Jorge (México)</option>
+                        <option value="es-MX-DaliaNeural">🇲🇽 Dalia (México)</option>
+                        <option value="es-AR-TomasNeural">🇦🇷 Tomás (Argentina)</option>
+                        <option value="es-AR-ElenaNeural">🇦🇷 Elena (Argentina)</option>
+                    </select>
+                    
+                    <button type="submit">
+                        <i class="bi bi-play-fill"></i> Generar Podcast
+                    </button>
+                </form>
+            </div>
+        <% } else if (categories.length === 0) { %>
+            <div class="generate-card mb-8">
+                <h3><i class="bi bi-exclamation-circle"></i> Sin Categorías</h3>
+                <p>No hay feeds RSS configurados. Contacta al administrador para agregar fuentes de noticias.</p>
+            </div>
+        <% } else { %>
+            <div class="generate-card mb-8" style="border-color: rgba(234, 179, 8, 0.3); background: linear-gradient(145deg, rgba(234, 179, 8, 0.1) 0%, rgba(234, 179, 8, 0.05) 100%);">
+                <h3 style="color: #eab308;"><i class="bi bi-exclamation-triangle"></i> Límite Alcanzado</h3>
+                <p>Has alcanzado el límite de <%= podcastLimit %> podcasts. Elimina uno para generar más.</p>
+            </div>
+        <% } %>
+
+        <!-- Podcasts List -->
+        <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+            <i class="bi bi-collection-play text-purple-400"></i>
+            Mis Podcasts
+        </h2>
+        
+        <% if (podcasts.length === 0) { %>
+            <div class="empty-state">
+                <i class="bi bi-soundwave"></i>
+                <p>No tienes podcasts generados aún.</p>
+                <p class="text-sm">Genera tu primer podcast seleccionando una categoría arriba.</p>
+            </div>
+        <% } else { %>
+            <div class="space-y-4">
+                <% podcasts.forEach(podcast => { %>
+                    <div class="podcast-card <%= podcast.status === 'processing' ? 'processing' : '' %>">
+                        <div class="podcast-header">
+                            <div class="podcast-icon">
+                                <% if (podcast.status === 'ready') { %>
+                                    <i class="bi bi-mic-fill"></i>
+                                <% } else if (podcast.status === 'processing') { %>
+                                    <i class="bi bi-hourglass-split"></i>
+                                <% } else { %>
+                                    <i class="bi bi-exclamation-circle"></i>
+                                <% } %>
+                            </div>
+                            <div class="podcast-title"><%= podcast.title %></div>
+                            <span class="status-badge <%= podcast.status %>">
+                                <i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i>
+                                <%= podcast.status === 'ready' ? 'Listo' : (podcast.status === 'processing' ? 'Generando...' : 'Error') %>
+                            </span>
+                        </div>
+                        
+                        <div class="podcast-body">
+                            <div class="podcast-meta">
+                                <span><i class="bi bi-tag"></i> <%= podcast.topic %></span>
+                                <span><i class="bi bi-calendar"></i> <%= new Date(podcast.created_at).toLocaleDateString('es-ES') %></span>
+                            </div>
+                            
+                            <% if (podcast.status === 'ready' && podcast.file_path) { %>
+                                <div class="podcast-player">
+                                    <audio controls preload="metadata">
+                                        <source src="/downloads/<%= podcast.file_path %>" type="audio/mpeg">
+                                        Tu navegador no soporta audio.
+                                    </audio>
+                                </div>
+                            <% } %>
+                            
+                            <div class="podcast-actions" style="margin-top: 1rem;">
+                                <% if (podcast.status === 'ready' && podcast.file_path) { %>
+                                    <a href="/podcast-ia/download/<%= podcast.id %>" class="podcast-btn primary">
+                                        <i class="bi bi-download"></i> Descargar
+                                    </a>
+                                <% } %>
+                                
+                                <form action="/podcast-ia/delete/<%= podcast.id %>" method="POST" style="display: inline;" onsubmit="return confirm('¿Eliminar este podcast?');">
+                                    <button type="submit" class="podcast-btn danger">
+                                        <i class="bi bi-trash3"></i> Eliminar
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } %>
+
+    </main>
+
+    <footer class="bg-white dark:bg-gray-800 text-gray-500 py-6 mt-12 text-center text-sm border-t border-gray-200 dark:border-gray-700">
+        <p>Youtube2Podcast v<%= appVersion %> | <a href="/" class="hover:text-gray-700 dark:hover:text-gray-300">Inicio</a></p>
+    </footer>
+
+    <script>
+        // Auto-refresh page if there are processing podcasts
+        const hasProcessing = document.querySelector('.podcast-card.processing');
+        if (hasProcessing) {
+            setTimeout(() => {
+                window.location.reload();
+            }, 15000); // Refresh every 15 seconds
+        }
+    </script>
+</body>
+</html>
+

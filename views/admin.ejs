@@ -888,6 +888,14 @@
                     <i class="bi bi-people-fill"></i>
                     <span>Usuarios</span>
                 </a>
+                <a href="#" class="nav-item" data-tab="feeds">
+                    <i class="bi bi-rss-fill"></i>
+                    <span>RSS Feeds</span>
+                </a>
+                <a href="#" class="nav-item" data-tab="podcasts-ia">
+                    <i class="bi bi-mic-fill"></i>
+                    <span>Podcasts IA</span>
+                </a>
                 <a href="#" class="nav-item" data-tab="danger">
                     <i class="bi bi-exclamation-triangle-fill"></i>
                     <span>Zona de Peligro</span>
@@ -1233,6 +1241,115 @@
                 </div>
             </div>
             
+            <!-- RSS Feeds Tab -->
+            <div id="tab-feeds" class="tab-content">
+                <!-- Add Feed Form -->
+                <div class="form-card">
+                    <h3 class="form-title">Agregar Nuevo Feed RSS</h3>
+                    <form id="add-feed-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Nombre</label>
+                                <input type="text" name="name" placeholder="Ej. TechCrunch" required class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label>URL del Feed</label>
+                                <input type="url" name="url" placeholder="https://..." required class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label>Categoría</label>
+                                <input type="text" name="category" placeholder="Ej. Tecnología" required class="form-input" list="category-suggestions">
+                                <datalist id="category-suggestions">
+                                    <option value="Tecnología">
+                                    <option value="Deportes">
+                                    <option value="Política">
+                                    <option value="Economía">
+                                    <option value="Entretenimiento">
+                                    <option value="Ciencia">
+                                </datalist>
+                            </div>
+                            <div class="form-group">
+                                <label>Idioma</label>
+                                <select name="language" class="form-input">
+                                    <option value="en">English</option>
+                                    <option value="es">Español</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                                    <i class="bi bi-plus-lg"></i> Agregar Feed
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Feeds Table -->
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <h3 class="table-title">
+                            Feeds Configurados
+                            <span class="badge" id="feeds-count">0</span>
+                        </h3>
+                        <button class="btn btn-secondary" onclick="loadFeeds()">
+                            <i class="bi bi-arrow-clockwise"></i> Actualizar
+                        </button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Categoría</th>
+                                <th>Idioma</th>
+                                <th>URL</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="feeds-table-body">
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                                    Cargando feeds...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Podcasts IA Tab -->
+            <div id="tab-podcasts-ia" class="tab-content">
+                <div class="data-table-container">
+                    <div class="table-header">
+                        <h3 class="table-title">
+                            Podcasts IA Generados
+                            <span class="badge" id="podcasts-count">0</span>
+                        </h3>
+                        <button class="btn btn-secondary" onclick="loadFeeds()">
+                            <i class="bi bi-arrow-clockwise"></i> Actualizar
+                        </button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Usuario</th>
+                                <th>Categoría</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="podcasts-table-body">
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                                    Cargando podcasts...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
             <!-- Danger Zone Tab -->
             <div id="tab-danger" class="tab-content">
                 <div class="danger-zone">
@@ -1320,6 +1437,8 @@
         'dashboard': 'Dashboard',
         'episodes': 'Gestión de Episodios',
         'users': 'Gestión de Usuarios',
+        'feeds': 'RSS Feeds',
+        'podcasts-ia': 'Podcasts IA',
         'danger': 'Zona de Peligro'
     };
     
@@ -1516,6 +1635,201 @@
         episodesChart.options.scales.x.ticks.color = getTickColor();
         episodesChart.update();
     }
+    
+    // ===============================
+    // RSS FEEDS & PODCASTS IA MANAGEMENT
+    // ===============================
+    
+    let feedsData = { feeds: [], categories: [], generatedPodcasts: [] };
+    
+    // Load feeds and podcasts data
+    async function loadFeeds() {
+        try {
+            const response = await fetch('/admin/feeds');
+            if (!response.ok) throw new Error('Error loading feeds');
+            
+            feedsData = await response.json();
+            renderFeedsTable();
+            renderPodcastsTable();
+        } catch (error) {
+            console.error('Error loading feeds:', error);
+        }
+    }
+    
+    // Render feeds table
+    function renderFeedsTable() {
+        const tbody = document.getElementById('feeds-table-body');
+        const countBadge = document.getElementById('feeds-count');
+        
+        countBadge.textContent = feedsData.feeds.length;
+        
+        if (feedsData.feeds.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No hay feeds configurados. Agrega uno arriba.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = feedsData.feeds.map(feed => `
+            <tr>
+                <td style="font-weight: 500; color: var(--text-primary);">${escapeHtml(feed.name)}</td>
+                <td>
+                    <span class="status-badge ready">${escapeHtml(feed.category)}</span>
+                </td>
+                <td>${feed.language === 'es' ? '🇪🇸 ES' : '🇬🇧 EN'}</td>
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <a href="${escapeHtml(feed.url)}" target="_blank" style="color: var(--accent-teal);">
+                        ${escapeHtml(feed.url)}
+                    </a>
+                </td>
+                <td>
+                    <button class="action-btn delete" title="Eliminar" onclick="deleteFeed(${feed.id})">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    // Render podcasts table
+    function renderPodcastsTable() {
+        const tbody = document.getElementById('podcasts-table-body');
+        const countBadge = document.getElementById('podcasts-count');
+        
+        countBadge.textContent = feedsData.generatedPodcasts.length;
+        
+        if (feedsData.generatedPodcasts.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No hay podcasts IA generados aún.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = feedsData.generatedPodcasts.map(podcast => `
+            <tr>
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--text-primary);" title="${escapeHtml(podcast.title)}">
+                    ${escapeHtml(podcast.title)}
+                </td>
+                <td>${escapeHtml(podcast.owner_username || 'N/A')}</td>
+                <td>
+                    <span class="status-badge ready">${escapeHtml(podcast.topic)}</span>
+                </td>
+                <td>
+                    <span class="status-badge ${podcast.status}">
+                        <i class="bi bi-circle-fill"></i>
+                        ${podcast.status === 'ready' ? 'Listo' : (podcast.status === 'error' ? 'Error' : 'Procesando')}
+                    </span>
+                </td>
+                <td style="color: var(--text-muted);">${new Date(podcast.created_at).toLocaleDateString()}</td>
+                <td>
+                    <button class="action-btn delete" title="Eliminar" onclick="deletePodcast(${podcast.id})">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+    
+    // Escape HTML for security
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+    
+    // Add feed form submission
+    document.getElementById('add-feed-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const data = {
+            name: formData.get('name'),
+            url: formData.get('url'),
+            category: formData.get('category'),
+            language: formData.get('language')
+        };
+        
+        try {
+            const response = await fetch('/admin/feeds', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                e.target.reset();
+                loadFeeds();
+                alert('Feed agregado correctamente');
+            } else {
+                alert('Error: ' + (result.error || 'Error desconocido'));
+            }
+        } catch (error) {
+            console.error('Error adding feed:', error);
+            alert('Error de conexión');
+        }
+    });
+    
+    // Delete feed
+    async function deleteFeed(id) {
+        if (!confirm('¿Eliminar este feed?')) return;
+        
+        try {
+            const response = await fetch(`/admin/feeds/delete/${id}`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                loadFeeds();
+            } else {
+                const result = await response.json();
+                alert('Error: ' + (result.error || 'Error desconocido'));
+            }
+        } catch (error) {
+            console.error('Error deleting feed:', error);
+            alert('Error de conexión');
+        }
+    }
+    
+    // Delete podcast
+    async function deletePodcast(id) {
+        if (!confirm('¿Eliminar este podcast IA?')) return;
+        
+        try {
+            const response = await fetch(`/admin/podcasts/delete/${id}`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                loadFeeds();
+            } else {
+                const result = await response.json();
+                alert('Error: ' + (result.error || 'Error desconocido'));
+            }
+        } catch (error) {
+            console.error('Error deleting podcast:', error);
+            alert('Error de conexión');
+        }
+    }
+    
+    // Load feeds when switching to feeds or podcasts-ia tab
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const tab = item.dataset.tab;
+            if (tab === 'feeds' || tab === 'podcasts-ia') {
+                loadFeeds();
+            }
+        });
+    });
 </script>
 </body>
 </html>

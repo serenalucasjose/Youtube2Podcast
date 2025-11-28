@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-Script para pre-descargar los modelos de IA necesarios para el pipeline de traducción.
+Script para pre-descargar los modelos de IA necesarios para el pipeline de traducción
+y generación de podcasts IA.
+
 Ejecutar una vez después de instalar las dependencias.
 
 Uso:
@@ -10,6 +12,7 @@ Uso:
 
 import os
 import sys
+from pathlib import Path
 
 def download_stt_model():
     """Descarga el modelo de Speech-to-Text (faster-whisper)"""
@@ -62,9 +65,31 @@ def test_tts():
         print(f"✗ Error verificando edge-tts: {e}")
         return False
 
+def download_text_generator():
+    """Descarga el modelo de generación de texto (distilgpt2) para scripts de podcast"""
+    print("\n" + "="*60)
+    print("Descargando modelo de generación de texto (distilgpt2)...")
+    print("="*60)
+    
+    try:
+        from transformers import pipeline
+        
+        # Esto descargará el modelo si no existe
+        generator = pipeline("text-generation", model="distilgpt2")
+        
+        # Quick test
+        result = generator("Hello", max_length=10, num_return_sequences=1)
+        print(f"✓ Modelo de texto descargado correctamente")
+        del generator
+        return True
+    except Exception as e:
+        print(f"✗ Error descargando modelo de texto: {e}")
+        print("  Nota: Este modelo es opcional para Podcast IA")
+        return True  # No es crítico, el script usa plantillas
+
 def main():
     print("="*60)
-    print("DESCARGA DE MODELOS PARA PIPELINE DE TRADUCCIÓN")
+    print("DESCARGA DE MODELOS PARA YOUTUBE2PODCAST")
     print("="*60)
     print("\nEste proceso puede tardar varios minutos dependiendo de")
     print("la velocidad de tu conexión a internet.\n")
@@ -72,7 +97,8 @@ def main():
     results = {
         "STT (faster-whisper)": download_stt_model(),
         "Traducción (Helsinki-NLP)": download_translation_model(),
-        "TTS (edge-tts)": test_tts()
+        "TTS (edge-tts)": test_tts(),
+        "Generador de texto (distilgpt2)": download_text_generator()
     }
     
     print("\n" + "="*60)
@@ -89,10 +115,13 @@ def main():
     print("")
     if all_success:
         print("¡Todos los modelos descargados correctamente!")
-        print("El pipeline de traducción está listo para usar.")
+        print("El pipeline de traducción y Podcast IA está listo para usar.")
         print("")
         print("Nota: edge-tts requiere conexión a internet para funcionar,")
         print("ya que usa los servicios de Microsoft Edge TTS.")
+        print("")
+        print("Nota: Podcast IA usa un sistema de plantillas optimizado para")
+        print("dispositivos con recursos limitados (Raspberry Pi).")
         return 0
     else:
         print("Algunos modelos no se pudieron descargar.")

@@ -69,6 +69,32 @@ db.exec(`
   );
 `);
 
+// Create RSS feeds table for Podcast IA feature
+db.exec(`
+  CREATE TABLE IF NOT EXISTS rss_feeds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
+    category TEXT NOT NULL,
+    language TEXT DEFAULT 'en',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// Create generated podcasts table for Podcast IA feature
+db.exec(`
+  CREATE TABLE IF NOT EXISTS generated_podcasts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    topic TEXT NOT NULL,
+    title TEXT NOT NULL,
+    file_path TEXT,
+    script_text TEXT,
+    status TEXT DEFAULT 'processing',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
 // Seed Users
 const seedUsers = () => {
     const usersToCreate = [
@@ -248,6 +274,68 @@ module.exports = {
   },
   deletePushSubscription: (endpoint) => {
       return db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(endpoint);
+  },
+
+  // RSS Feeds Management
+  addRssFeed: (feed) => {
+      try {
+          return db.prepare('INSERT INTO rss_feeds (name, url, category, language) VALUES (?, ?, ?, ?)').run(feed.name, feed.url, feed.category, feed.language || 'en');
+      } catch (err) {
+          if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+              throw new Error('Feed URL already exists');
+          }
+          throw err;
+      }
+  },
+  getAllRssFeeds: () => {
+      return db.prepare('SELECT * FROM rss_feeds ORDER BY category, name').all();
+  },
+  getRssFeedsByCategory: (category) => {
+      return db.prepare('SELECT * FROM rss_feeds WHERE category = ?').all(category);
+  },
+  getRssFeedCategories: () => {
+      return db.prepare('SELECT DISTINCT category FROM rss_feeds ORDER BY category').all().map(r => r.category);
+  },
+  deleteRssFeed: (id) => {
+      return db.prepare('DELETE FROM rss_feeds WHERE id = ?').run(id);
+  },
+
+  // Generated Podcasts Management
+  addGeneratedPodcast: (podcast) => {
+      const stmt = db.prepare(`
+          INSERT INTO generated_podcasts (user_id, topic, title, status)
+          VALUES (@user_id, @topic, @title, @status)
+      `);
+      return stmt.run(podcast);
+  },
+  updateGeneratedPodcastStatus: (id, status, filePath = null, scriptText = null) => {
+      if (filePath && scriptText) {
+          return db.prepare('UPDATE generated_podcasts SET status = ?, file_path = ?, script_text = ? WHERE id = ?').run(status, filePath, scriptText, id);
+      } else if (filePath) {
+          return db.prepare('UPDATE generated_podcasts SET status = ?, file_path = ? WHERE id = ?').run(status, filePath, id);
+      } else {
+          return db.prepare('UPDATE generated_podcasts SET status = ? WHERE id = ?').run(status, id);
+      }
+  },
+  getGeneratedPodcastsByUserId: (userId) => {
+      return db.prepare('SELECT * FROM generated_podcasts WHERE user_id = ? ORDER BY created_at DESC').all(userId);
+  },
+  getGeneratedPodcastById: (id) => {
+      return db.prepare('SELECT * FROM generated_podcasts WHERE id = ?').get(id);
+  },
+  countGeneratedPodcastsByUserId: (userId) => {
+      return db.prepare('SELECT COUNT(*) as count FROM generated_podcasts WHERE user_id = ?').get(userId).count;
+  },
+  getAllGeneratedPodcasts: () => {
+      return db.prepare(`
+          SELECT gp.*, u.username as owner_username 
+          FROM generated_podcasts gp 
+          LEFT JOIN users u ON gp.user_id = u.id 
+          ORDER BY gp.created_at DESC
+      `).all();
+  },
+  deleteGeneratedPodcast: (id) => {
+      return db.prepare('DELETE FROM generated_podcasts WHERE id = ?').run(id);
   },
 
   // Admin Stats for Dashboard

@@ -214,6 +214,46 @@ class AIWorkerManager extends EventEmitter {
     }
 
     /**
+     * Genera un guion de podcast a partir de artículos.
+     * @param {Array} articles - Lista de artículos con title y summary.
+     * @returns {Promise<object>} - Resultado con el script generado.
+     */
+    async generateScript(articles) {
+        return this.sendJob({
+            type: 'generate_script',
+            articles
+        });
+    }
+
+    /**
+     * Genera un podcast completo (guion + audio) a partir de artículos.
+     * @param {Array} articles - Lista de artículos con title y summary.
+     * @param {string} outputPath - Ruta al archivo de audio de salida.
+     * @param {string} voice - Voz de Edge TTS.
+     * @returns {Promise<object>} - Resultado con script y ruta del audio.
+     */
+    async generatePodcast(articles, outputPath, voice = 'es-ES-AlvaroNeural') {
+        return this.sendJob({
+            type: 'generate_podcast',
+            articles,
+            output_path: outputPath,
+            voice
+        });
+    }
+
+    /**
+     * Traduce texto de inglés a español.
+     * @param {string} text - Texto a traducir.
+     * @returns {Promise<object>} - Resultado con texto traducido.
+     */
+    async translateText(text) {
+        return this.sendJob({
+            type: 'translate_text',
+            text
+        });
+    }
+
+    /**
      * Cierra el worker de forma limpia.
      */
     async shutdown() {

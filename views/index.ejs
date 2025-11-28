@@ -38,7 +38,7 @@
                 <img src="/icons/logo.png" alt="Youtube2Podcast" class="w-10 h-10 rounded-sm">
                 <div>
                     <span class="font-semibold text-gray-900 dark:text-white">Youtube2Podcast</span>
-                    <span class="ml-2 text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300">v1.5</span>
+                    <span class="ml-2 text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300">v1.6</span>
                 </div>
             </div>
             <button id="close-mobile-menu-btn" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -88,6 +88,14 @@
                 <span id="mobile-timer-badge" class="hidden ml-auto text-xs bg-orange-500 text-white rounded px-2 py-0.5 font-medium"></span>
             </button>
             
+            <div class="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
+                <a href="/podcast-ia" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <i class="bi bi-mic-fill text-lg text-purple-500"></i>
+                    <span>Podcast IA</span>
+                    <span class="ml-auto text-xs bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">Nuevo</span>
+                </a>
+            </div>
+            
             <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
             <div class="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">
                 <a href="/admin" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -117,7 +125,7 @@
                         <i class="bi bi-list text-2xl"></i>
                     </button>
                     <img src="/icons/logo.png" alt="Youtube2Podcast" class="w-auto rounded-sm hidden xs:block" style="max-width: 60px;">
-                    <span class="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300 hidden sm:inline">v1.5</span>
+                    <span class="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300 hidden sm:inline">v1.6</span>
                 </div>
                 
                 <!-- Right side controls -->
@@ -148,6 +156,11 @@
                     
                     <!-- User info and actions -->
                     <div class="flex items-center gap-1 sm:gap-2 ml-1 sm:ml-2 pl-1 sm:pl-2 border-l border-gray-300 dark:border-gray-600">
+                        <a href="/podcast-ia" class="hidden sm:flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs sm:text-sm text-purple-500 hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 font-medium transition-colors" title="Podcast IA">
+                            <i class="bi bi-mic-fill text-base"></i>
+                            <span class="hidden md:inline">Podcast IA</span>
+                            <span class="hidden md:inline text-[10px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">Nuevo</span>
+                        </a>
                         <span class="text-gray-500 dark:text-gray-400 text-xs hidden md:inline"><%= user %></span>
                         <span class="text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300" title="Videos usados">
                             <%= episodeCount %>/<%= quotaLimit %>
@@ -252,7 +265,7 @@
     </main>
 
     <footer class="bg-white dark:bg-gray-800 text-gray-500 py-6 mt-12 text-center text-sm border-t border-gray-200 dark:border-gray-700">
-        <p>Youtube2Podcast v1.5 | <a href="/logout" class="hover:text-gray-700 dark:hover:text-gray-300">Salir</a></p>
+        <p>Youtube2Podcast v1.6 | <a href="/logout" class="hover:text-gray-700 dark:hover:text-gray-300">Salir</a></p>
     </footer>
 
     <!-- Voice Selection Modal -->

@@ -389,8 +389,49 @@ step_download_models() {
     fi
 }
 
+step_import_rss_feeds() {
+    print_header "PASO 7: Importar Feeds RSS"
+    
+    print_info "Este paso importará feeds RSS precargados desde el repositorio:"
+    echo "  • awesome-rss-feeds (GitHub)"
+    echo "  • ~700+ feeds organizados por categorías"
+    echo "  • Tech, News, Science, Programming, etc."
+    echo ""
+    print_info "Estos feeds se usarán para generar podcasts IA"
+    echo ""
+    
+    # Verificar que existe node_modules (dependencias instaladas)
+    if [[ ! -d "$PROJECT_DIR/node_modules" ]]; then
+        print_warning "Las dependencias de Node.js no están instaladas."
+        print_info "Ejecuta primero el Paso 3 (Dependencias de Node.js)"
+        return 1
+    fi
+    
+    if confirm "¿Importar feeds RSS precargados?"; then
+        print_step "Importando feeds RSS..."
+        echo ""
+        
+        cd "$PROJECT_DIR"
+        if node scripts/import_rss_feeds.js; then
+            echo ""
+            print_success "Feeds RSS importados correctamente"
+            return 0
+        else
+            print_error "Error importando feeds RSS"
+            print_warning "Puedes intentar más tarde ejecutando:"
+            echo "  node scripts/import_rss_feeds.js"
+            return 1
+        fi
+    else
+        print_info "Paso omitido por el usuario"
+        print_info "Puedes importar los feeds más tarde ejecutando:"
+        echo "  node scripts/import_rss_feeds.js"
+        return 0
+    fi
+}
+
 step_start_server() {
-    print_header "PASO 7: Configurar Servicio con PM2"
+    print_header "PASO 8: Configurar Servicio con PM2"
     
     print_info "La aplicación se ejecutará como servicio con PM2."
     echo ""
@@ -552,6 +593,7 @@ main() {
     step_env_configuration
     step_build_css
     step_download_models
+    step_import_rss_feeds
     
     # Resumen final
     print_header "INSTALACIÓN COMPLETADA"

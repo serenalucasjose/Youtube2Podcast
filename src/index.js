@@ -11,6 +11,8 @@ const db = require('./db');
 const downloader = require('./downloader');
 const translationService = require('./translation_service');
 const transcriptionService = require('./transcription_service');
+const rssService = require('./rss_service');
+const aiWorker = require('./ai_worker');
 const packageJson = require('../package.json');
 
 
@@ -724,6 +726,300 @@ app.post('/api/clear-all', requireAdmin, async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
+// ===============================
+// PODCAST IA ROUTES
+// ===============================
+
+// Podcast IA: Main page
+app.get('/podcast-ia', requireAuth, (req, res) => {
+    const categories = rssService.getCategories();
+    const userPodcasts = db.getGeneratedPodcastsByUserId(req.session.userId);
+    const podcastCount = db.countGeneratedPodcastsByUserId(req.session.userId);
+    const podcastLimit = 3;
+    
+    res.render('podcast_ia', {
+        user: req.session.username,
+        isAdmin: req.session.role === 'admin',
+        categories,
+        podcasts: userPodcasts,
+        podcastCount,
+        podcastLimit,
+        error: req.query.error || null,
+        success: req.query.success || null
+    });
+});
+
+// Podcast IA: Generate new podcast
+app.post('/podcast-ia/generate', requireAuth, async (req, res) => {
+    const { category, voice } = req.body;
+    
+    if (!category) {
+        return res.redirect('/podcast-ia?error=' + encodeURIComponent('Debes seleccionar una categoría'));
+    }
+    
+    // Check quota (max 3 podcasts per user)
+    const podcastCount = db.countGeneratedPodcastsByUserId(req.session.userId);
+    if (podcastCount >= 3) {
+        return res.redirect('/podcast-ia?error=' + encodeURIComponent('Has alcanzado el límite de 3 podcasts IA'));
+    }
+    
+    try {
+        // Create DB entry with processing status
+        const title = `Noticias de ${category} - ${new Date().toLocaleDateString('es-ES')}`;
+        const result = db.addGeneratedPodcast({
+            user_id: req.session.userId,
+            topic: category,
+            title,
+            status: 'processing'
+        });
+        
+        const podcastId = result.lastInsertRowid;
+        
+        // Start generation in background
+        generatePodcastInBackground(podcastId, category, voice || 'es-ES-AlvaroNeural', req.session.userId);
+        
+        res.redirect('/podcast-ia?success=' + encodeURIComponent('Podcast en generación. Esto puede tardar unos minutos.'));
+    } catch (error) {
+        console.error('Error creating podcast:', error);
+        res.redirect('/podcast-ia?error=' + encodeURIComponent('Error al iniciar la generación: ' + error.message));
+    }
+});
+
+// Helper function to wait for AI worker to be ready
+async function waitForAIWorkerReady(maxWaitTime = 120000) {
+    const startTime = Date.now();
+    const checkInterval = 1000; // Check every second
+    
+    while (Date.now() - startTime < maxWaitTime) {
+        const status = aiWorker.getStatus();
+        if (status.ready) {
+            return true;
+        }
+        
+        // If worker is not running, try to initialize it
+        if (!status.running) {
+            try {
+                console.log('[Podcast IA] Worker not running, initializing...');
+                await aiWorker.initialize();
+                return true;
+            } catch (error) {
+                console.error('[Podcast IA] Failed to initialize worker:', error);
+                throw new Error('No se pudo inicializar el worker de IA');
+            }
+        }
+        
+        // Wait before checking again
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+    }
+    
+    throw new Error('Timeout esperando que el worker de IA esté listo');
+}
+
+// Background podcast generation function
+async function generatePodcastInBackground(podcastId, category, voice, userId) {
+    const downloadsDir = path.join(__dirname, '../downloads');
+    const outputFileName = `podcast_ia_${podcastId}.mp3`;
+    const outputPath = path.join(downloadsDir, outputFileName);
+    
+    try {
+        console.log(`[Podcast IA] Starting generation for podcast ${podcastId}, category: ${category}`);
+        
+        // Wait for AI worker to be ready
+        await waitForAIWorkerReady();
+        
+        // 1. Fetch articles from RSS feeds
+        const articles = await rssService.prepareArticlesForPodcast(category, aiWorker, 5);
+        
+        if (articles.length === 0) {
+            throw new Error('No se encontraron artículos en los feeds de esta categoría');
+        }
+        
+        console.log(`[Podcast IA] Fetched ${articles.length} articles`);
+        
+        // 2. Generate podcast (script + audio) using AI worker
+        const result = await aiWorker.generatePodcast(articles, outputPath, voice);
+        
+        console.log(`[Podcast IA] Generated podcast: ${result.output_path}`);
+        
+        // 3. Update DB with success
+        db.updateGeneratedPodcastStatus(podcastId, 'ready', outputFileName, result.script);
+        
+        // 4. Send push notification
+        sendPodcastReadyNotification(userId, podcastId);
+        
+    } catch (error) {
+        console.error(`[Podcast IA] Error generating podcast ${podcastId}:`, error);
+        db.updateGeneratedPodcastStatus(podcastId, 'error');
+    }
+}
+
+// Send push notification when podcast is ready
+async function sendPodcastReadyNotification(userId, podcastId) {
+    if (!process.env.VAPID_PUBLIC_KEY) return;
+    
+    const subscriptions = db.getPushSubscriptionsByUserId(userId);
+    const podcast = db.getGeneratedPodcastById(podcastId);
+    
+    if (!podcast || subscriptions.length === 0) return;
+    
+    const payload = JSON.stringify({
+        title: '🎙️ Podcast IA Listo',
+        body: `Tu podcast "${podcast.title}" está listo para escuchar`,
+        url: '/podcast-ia'
+    });
+    
+    for (const sub of subscriptions) {
+        try {
+            await webPush.sendNotification({
+                endpoint: sub.endpoint,
+                keys: {
+                    auth: sub.keys_auth,
+                    p256dh: sub.keys_p256dh
+                }
+            }, payload);
+        } catch (error) {
+            if (error.statusCode === 410) {
+                db.deletePushSubscription(sub.endpoint);
+            }
+        }
+    }
+}
+
+// Podcast IA: Delete podcast
+app.post('/podcast-ia/delete/:id', requireAuth, async (req, res) => {
+    const podcast = db.getGeneratedPodcastById(req.params.id);
+    
+    if (!podcast) {
+        return res.redirect('/podcast-ia?error=' + encodeURIComponent('Podcast no encontrado'));
+    }
+    
+    // Check ownership
+    if (podcast.user_id !== req.session.userId && req.session.role !== 'admin') {
+        return res.redirect('/podcast-ia?error=' + encodeURIComponent('No autorizado'));
+    }
+    
+    // Delete file if exists
+    if (podcast.file_path) {
+        const filePath = path.join(__dirname, '../downloads', podcast.file_path);
+        try {
+            await fs.promises.unlink(filePath);
+        } catch (err) {
+            if (err.code !== 'ENOENT') {
+                console.error(`Error deleting podcast file ${filePath}:`, err);
+            }
+        }
+    }
+    
+    // Delete from DB
+    db.deleteGeneratedPodcast(podcast.id);
+    
+    res.redirect('/podcast-ia');
+});
+
+// Podcast IA: Download podcast
+app.get('/podcast-ia/download/:id', requireAuth, async (req, res) => {
+    const podcast = db.getGeneratedPodcastById(req.params.id);
+    
+    if (!podcast) {
+        return res.status(404).send('Podcast no encontrado');
+    }
+    
+    // Check ownership
+    if (podcast.user_id !== req.session.userId && req.session.role !== 'admin') {
+        return res.status(403).send('No autorizado');
+    }
+    
+    if (podcast.status !== 'ready' || !podcast.file_path) {
+        return res.status(400).send('Podcast no disponible');
+    }
+    
+    const filePath = path.join(__dirname, '../downloads', podcast.file_path);
+    
+    try {
+        await fs.promises.access(filePath);
+        res.download(filePath, `${podcast.title}.mp3`);
+    } catch {
+        return res.status(404).send('Archivo no encontrado');
+    }
+});
+
+// ===============================
+// ADMIN: RSS FEEDS MANAGEMENT
+// ===============================
+
+// Admin: Get all RSS feeds
+app.get('/admin/feeds', requireAdmin, (req, res) => {
+    const feeds = db.getAllRssFeeds();
+    const categories = db.getRssFeedCategories();
+    const generatedPodcasts = db.getAllGeneratedPodcasts();
+    
+    res.json({
+        feeds,
+        categories,
+        generatedPodcasts
+    });
+});
+
+// Admin: Add RSS feed
+app.post('/admin/feeds', requireAdmin, (req, res) => {
+    const { name, url, category, language } = req.body;
+    
+    if (!name || !url || !category) {
+        return res.status(400).json({ error: 'Nombre, URL y categoría son requeridos' });
+    }
+    
+    try {
+        db.addRssFeed({ name, url, category, language: language || 'en' });
+        res.json({ success: true, message: 'Feed agregado correctamente' });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Admin: Delete RSS feed
+app.post('/admin/feeds/delete/:id', requireAdmin, (req, res) => {
+    try {
+        db.deleteRssFeed(req.params.id);
+        res.json({ success: true, message: 'Feed eliminado correctamente' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Admin: Delete generated podcast
+app.post('/admin/podcasts/delete/:id', requireAdmin, async (req, res) => {
+    const podcast = db.getGeneratedPodcastById(req.params.id);
+    
+    if (!podcast) {
+        return res.status(404).json({ error: 'Podcast no encontrado' });
+    }
+    
+    // Delete file if exists
+    if (podcast.file_path) {
+        const filePath = path.join(__dirname, '../downloads', podcast.file_path);
+        try {
+            await fs.promises.unlink(filePath);
+        } catch (err) {
+            if (err.code !== 'ENOENT') {
+                console.error(`Error deleting podcast file:`, err);
+            }
+        }
+    }
+    
+    db.deleteGeneratedPodcast(podcast.id);
+    res.json({ success: true, message: 'Podcast eliminado correctamente' });
+});
+
+app.listen(PORT, async () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    
+    // Initialize AI worker in background
+    try {
+        console.log('[Startup] Initializing AI worker...');
+        await aiWorker.initialize();
+        console.log('[Startup] AI worker initialized successfully');
+    } catch (error) {
+        console.error('[Startup] Failed to initialize AI worker:', error);
+        console.error('[Startup] AI features will not be available until worker is initialized');
+    }
 });

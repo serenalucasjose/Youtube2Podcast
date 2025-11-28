@@ -25,3 +25,8 @@ fpdf2>=2.7.0
 # Torch CPU-only (required by faster-whisper and transformers)
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.0.0
+
+# LLM - Local Language Model for script generation
+# Using transformers with a small model (no llama-cpp compilation needed)
+
+sacremoses
