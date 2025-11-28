@@ -83,6 +83,16 @@ async function cleanupOutputFile(videoId) {
 // Sleep helper for retry delay
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Custom error class for duplicate videos
+class DuplicateVideoError extends Error {
+    constructor(message, code, existingEpisode) {
+        super(message);
+        this.name = 'DuplicateVideoError';
+        this.code = code; // 'ALREADY_EXISTS_USER' or 'ALREADY_EXISTS_GLOBAL'
+        this.existingEpisode = existingEpisode;
+    }
+}
+
 async function processVideo(url, userId) {
     // 1. Get Metadata (Blocking part - fast)
     let metadata;
@@ -102,11 +112,25 @@ async function processVideo(url, userId) {
         const title = metadata.title;
         const thumbnail_url = metadata.thumbnail;
 
-        // Check if exists
+        // Check if video already exists in the database
         const existingEpisode = db.getEpisodeByYoutubeId(videoId);
         if (existingEpisode) {
             progressEmitter.emit('progress', { status: 'done', percent: 100 });
-            return existingEpisode;
+            
+            // Determine if it belongs to the current user or another user
+            if (existingEpisode.user_id === userId) {
+                throw new DuplicateVideoError(
+                    `Ya tienes este video en tu biblioteca: "${existingEpisode.title}"`,
+                    'ALREADY_EXISTS_USER',
+                    existingEpisode
+                );
+            } else {
+                throw new DuplicateVideoError(
+                    `Este video ya fue agregado por otro usuario.`,
+                    'ALREADY_EXISTS_GLOBAL',
+                    existingEpisode
+                );
+            }
         }
 
         // Insert into DB immediately as 'processing'
@@ -354,5 +378,6 @@ async function sendPushNotification(userId, title, success) {
 
 module.exports = {
     processVideo,
-    progressEmitter
+    progressEmitter,
+    DuplicateVideoError
 };

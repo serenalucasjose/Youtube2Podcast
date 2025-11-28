@@ -186,11 +186,23 @@
     <main class="flex-grow container mx-auto px-4 py-8" id="main-content">
         
         <% if (typeof error !== 'undefined' && error) { %>
-            <div class="max-w-2xl mx-auto mb-4">
-                <div class="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm">
-                    <%= error %>
+            <div class="max-w-2xl mx-auto mb-4" id="error-banner">
+                <div class="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm flex items-center justify-between gap-3">
+                    <span><%= error %></span>
+                    <button type="button" onclick="dismissErrorBanner()" class="text-red-300 hover:text-white transition flex-shrink-0" title="Cerrar">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
                 </div>
             </div>
+            <script>
+                function dismissErrorBanner() {
+                    document.getElementById('error-banner').remove();
+                    // Remove error param from URL without reload
+                    const url = new URL(window.location);
+                    url.searchParams.delete('error');
+                    window.history.replaceState({}, '', url.pathname + url.search);
+                }
+            </script>
         <% } %>
 
         <!-- Input Section -->
@@ -730,15 +742,25 @@
         const transcriptionModal = document.getElementById('transcription-modal');
         const transcriptionEpisodeIdInput = document.getElementById('transcription-episode-id');
         const transcriptionLanguageSelect = document.getElementById('transcription-language');
+        let transcriptionForceFlag = false;
         
-        function openTranscriptionModal(episodeId) {
+        function openTranscriptionModal(episodeId, force = false) {
             transcriptionEpisodeIdInput.value = episodeId;
+            transcriptionForceFlag = force;
             transcriptionLanguageSelect.value = 'en'; // Default to English
+            
+            // Update modal title based on force flag
+            const modalTitle = transcriptionModal.querySelector('h3');
+            if (modalTitle) {
+                modalTitle.textContent = force ? 'Regenerar Transcripción' : 'Obtener Transcripción';
+            }
+            
             transcriptionModal.classList.remove('hidden');
         }
         
         function closeTranscriptionModal() {
             transcriptionModal.classList.add('hidden');
+            transcriptionForceFlag = false;
         }
         
         async function confirmTranscription() {
@@ -750,7 +772,7 @@
                 const response = await fetch(`/transcribe/${episodeId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ language })
+                    body: JSON.stringify({ language, force: transcriptionForceFlag })
                 });
                 
                 const data = await response.json();

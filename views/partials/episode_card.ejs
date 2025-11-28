@@ -148,6 +148,10 @@
                     <a href="/download-transcription/<%= episode.id %>" class="text-purple-400 hover:text-purple-300 transition" title="Descargar Transcripción PDF">
                         <i class="bi bi-file-earmark-pdf-fill"></i>
                     </a>
+                    <!-- Regenerate Transcription -->
+                    <button type="button" onclick="openTranscriptionModal('<%= episode.id %>', true)" class="text-gray-400 hover:text-purple-400 transition" title="Regenerar Transcripción">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
                 <% } else if (episode.transcription_status === 'processing') { %>
                     <!-- Transcription Processing -->
                     <span class="text-purple-400" title="Transcribiendo...">

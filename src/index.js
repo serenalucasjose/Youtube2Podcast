@@ -264,6 +264,10 @@ app.post('/add', requireAuth, async (req, res) => {
         await downloader.processVideo(url, req.session.userId);
         res.redirect('/');
     } catch (error) {
+        // Handle duplicate video errors gracefully
+        if (error.name === 'DuplicateVideoError') {
+            return res.redirect('/?error=' + encodeURIComponent(error.message));
+        }
         console.error(error);
         res.status(500).send('Error processing video: ' + error.message);
     }
