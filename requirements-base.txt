@@ -8,4 +8,5 @@ sacremoses
 pydub
 fpdf2
 # Reemplazo de audioop para Python 3.13+ (usado por pydub)
-audioop-lts
+# Solo se instala en Python 3.13+ donde audioop fue removido de la stdlib
+audioop-lts; python_version >= "3.13"

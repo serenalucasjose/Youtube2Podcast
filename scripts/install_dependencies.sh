@@ -147,14 +147,80 @@ source "$VENV_DIR/bin/activate"
 print_info "Upgrading pip..."
 pip install --upgrade pip wheel setuptools
 
+# Detect architecture
+detect_arch() {
+    local arch=$(uname -m)
+    case $arch in
+        aarch64|arm64)
+            echo "arm64"
+            ;;
+        armv7l|armv6l)
+            echo "arm32"
+            ;;
+        x86_64|amd64)
+            echo "x86_64"
+            ;;
+        *)
+            echo "$arch"
+            ;;
+    esac
+}
+
 # Install Python dependencies based on platform
 OS_TYPE=$(detect_os)
+ARCH_TYPE=$(detect_arch)
+
 if [[ "$OS_TYPE" == "macos" ]]; then
     print_info "Installing Python dependencies (macOS)..."
     pip install -r "$PROJECT_DIR/requirements-macos.txt"
 else
-    print_info "Installing Python dependencies (Linux)..."
-    pip install -r "$PROJECT_DIR/requirements-linux.txt"
+    print_info "Installing Python dependencies (Linux - $ARCH_TYPE)..."
+    
+    # For ARM architectures (Raspberry Pi), install onnxruntime first
+    if [[ "$ARCH_TYPE" == "arm64" || "$ARCH_TYPE" == "arm32" ]]; then
+        print_info "Detected ARM architecture (Raspberry Pi)"
+        print_info "Installing onnxruntime for ARM..."
+        
+        # Try to install onnxruntime first (required for piper-tts)
+        # ARM devices need special handling
+        pip install onnxruntime || {
+            print_warn "Standard onnxruntime failed, trying alternative..."
+            # For Raspberry Pi, we may need to use a pre-built wheel or skip
+            pip install --extra-index-url https://google-coral.github.io/py-repo/ onnxruntime || {
+                print_warn "onnxruntime installation failed on ARM"
+                print_warn "piper-tts may not work - consider using espeak as fallback"
+            }
+        }
+    fi
+    
+    # Install base requirements first (without piper-tts to handle potential failures)
+    pip install -r "$PROJECT_DIR/requirements-base.txt"
+    
+    # Install faster-whisper (should work on ARM)
+    print_info "Installing faster-whisper..."
+    pip install faster-whisper || print_warn "faster-whisper installation failed"
+    
+    # Try to install piper-tts separately to handle ARM issues gracefully
+    print_info "Installing piper-tts..."
+    pip install piper-tts || {
+        print_warn "piper-tts installation failed on ARM architecture"
+        print_info "Installing espeak-ng as fallback TTS..."
+        
+        # Install espeak as fallback
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get install -y espeak-ng || sudo apt-get install -y espeak
+        elif command -v dnf &> /dev/null; then
+            sudo dnf install -y espeak-ng
+        elif command -v pacman &> /dev/null; then
+            sudo pacman -S --noconfirm espeak-ng
+        fi
+        
+        if command -v espeak-ng &> /dev/null || command -v espeak &> /dev/null; then
+            print_info "espeak installed as fallback TTS"
+        else
+            print_warn "Failed to install espeak - TTS will not be available"
+        fi
+    }
 fi
 
 # Create models directory if it doesn't exist
@@ -178,7 +244,17 @@ if [[ "$OS_TYPE" == "macos" ]]; then
     python -c "import pyttsx3" 2>/dev/null && echo "✓ pyttsx3 installed (offline TTS)" || print_warn "pyttsx3 not installed"
 else
     python -c "import faster_whisper" 2>/dev/null && echo "✓ faster-whisper installed" || print_warn "faster-whisper not installed"
-    python -c "import piper" 2>/dev/null && echo "✓ piper-tts installed" || print_warn "piper-tts not installed"
+    
+    # Check TTS (piper-tts or espeak fallback)
+    if python -c "import piper" 2>/dev/null; then
+        echo "✓ piper-tts installed"
+    elif command -v espeak-ng &> /dev/null; then
+        echo "✓ espeak-ng installed (TTS fallback)"
+    elif command -v espeak &> /dev/null; then
+        echo "✓ espeak installed (TTS fallback)"
+    else
+        print_warn "No TTS available (piper-tts or espeak)"
+    fi
 fi
 
 python -c "import transformers" 2>/dev/null && echo "✓ transformers installed" || print_warn "transformers not installed"

@@ -6,4 +6,8 @@
 faster-whisper
 
 # TTS offline (requiere onnxruntime)
-piper-tts
+# NOTA: En ARM (Raspberry Pi), piper-tts se instala por separado
+# en install_dependencies.sh para manejar problemas de compatibilidad
+# Si estás instalando manualmente en x86_64:
+#   pip install piper-tts
+# En ARM, el script intentará instalarlo con manejo de errores apropiado

@@ -43,9 +43,31 @@ def is_macos():
     return platform.system() == "Darwin"
 
 
+def is_piper_available():
+    """Verifica si piper-tts está disponible"""
+    try:
+        import piper
+        return True
+    except ImportError:
+        return False
+
+
+def is_espeak_available():
+    """Verifica si espeak está disponible en el sistema"""
+    import shutil
+    return shutil.which("espeak-ng") is not None or shutil.which("espeak") is not None
+
+
 def get_tts_backend():
     """Retorna el nombre del backend TTS disponible"""
-    return "pyttsx3" if is_macos() else "piper-tts"
+    if is_macos():
+        return "pyttsx3"
+    elif is_piper_available():
+        return "piper-tts"
+    elif is_espeak_available():
+        return "espeak"
+    else:
+        return "none"
 
 
 def normalize_voice(voice: str) -> str:
@@ -73,13 +95,23 @@ class TextToSpeech:
         self._backend = get_tts_backend()
         self._engine = None
         self._piper_voice = None
+        self._espeak_cmd = None
         
     def load(self):
         """Carga el motor TTS"""
         if is_macos():
             self._load_pyttsx3()
-        else:
+        elif is_piper_available():
             self._load_piper()
+        elif is_espeak_available():
+            self._load_espeak()
+        else:
+            raise RuntimeError(
+                "No hay backend TTS disponible. Instala piper-tts o espeak:\n"
+                "  pip install piper-tts\n"
+                "  -- o --\n"
+                "  sudo apt-get install espeak-ng"
+            )
         return self
     
     def _load_pyttsx3(self):
@@ -122,6 +154,13 @@ class TextToSpeech:
         
         self._piper_voice = PiperVoice.load(str(model_path))
     
+    def _load_espeak(self):
+        """Configura espeak como backend TTS (fallback para Linux/ARM)"""
+        import shutil
+        self._espeak_cmd = shutil.which("espeak-ng") or shutil.which("espeak")
+        if not self._espeak_cmd:
+            raise RuntimeError("espeak no está instalado")
+    
     def synthesize(self, text: str, output_path: str, progress_callback=None) -> bool:
         """
         Sintetiza texto a audio MP3.
@@ -136,8 +175,12 @@ class TextToSpeech:
         """
         if is_macos():
             return self._synthesize_pyttsx3(text, output_path, progress_callback)
-        else:
+        elif self._piper_voice is not None:
             return self._synthesize_piper(text, output_path, progress_callback)
+        elif hasattr(self, '_espeak_cmd') and self._espeak_cmd:
+            return self._synthesize_espeak(text, output_path, progress_callback)
+        else:
+            raise RuntimeError("No hay backend TTS cargado")
     
     def _synthesize_pyttsx3(self, text: str, output_path: str, progress_callback=None) -> bool:
         """Síntesis usando pyttsx3 (macOS)"""
@@ -223,6 +266,69 @@ class TextToSpeech:
                     self._piper_voice.synthesize(chunk, wav_file)
                 
                 combined += AudioSegment.from_wav(tmp_path)
+            finally:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            
+            if progress_callback:
+                progress = 72 + int((i + 1) / len(chunks) * 20)
+                progress_callback(progress, f"Segmento {i+1}/{len(chunks)}")
+        
+        # Exportar a MP3
+        if progress_callback:
+            progress_callback(94, "Exportando MP3...")
+        
+        combined.export(output_path, format="mp3", bitrate="128k")
+        
+        if progress_callback:
+            progress_callback(98, "Audio generado correctamente")
+        
+        return True
+    
+    def _synthesize_espeak(self, text: str, output_path: str, progress_callback=None) -> bool:
+        """Síntesis usando espeak (fallback para Linux/ARM)"""
+        import subprocess
+        from pydub import AudioSegment
+        
+        if progress_callback:
+            progress_callback(70, "Iniciando síntesis de voz (espeak)...")
+        
+        # Dividir texto largo en chunks
+        MAX_CHARS = 2000
+        chunks = self._split_text(text, MAX_CHARS)
+        
+        if progress_callback:
+            progress_callback(72, f"Sintetizando {len(chunks)} segmento(s)...")
+        
+        combined = AudioSegment.empty()
+        
+        for i, chunk in enumerate(chunks):
+            if not chunk.strip():
+                continue
+            
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
+                tmp_path = tmp.name
+            
+            try:
+                # Usar espeak para generar WAV
+                # -v es+f3 = voz en español femenina variante 3
+                # -s 150 = velocidad 150 palabras por minuto
+                cmd = [
+                    self._espeak_cmd,
+                    '-v', 'es',
+                    '-s', '150',
+                    '-w', tmp_path,
+                    chunk
+                ]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                if result.returncode != 0:
+                    raise RuntimeError(f"espeak falló: {result.stderr}")
+                
+                if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
+                    combined += AudioSegment.from_wav(tmp_path)
+                    
             finally:
                 if os.path.exists(tmp_path):
                     os.remove(tmp_path)
