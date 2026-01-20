@@ -65,55 +65,32 @@ def log_progress(stage: str, percent: int, message: str = ""):
 
 def transcribe_audio(audio_path: str, language: str) -> tuple[str, list]:
     """
-    Etapa 1: Speech-to-Text usando faster-whisper.
+    Etapa 1: Speech-to-Text usando faster-whisper (Linux) o openai-whisper (macOS).
     Transcribe el audio al idioma especificado.
     
     Returns:
         tuple: (full_text, segments_with_timestamps)
     """
-    log_progress("stt", 10, f"Cargando modelo de transcripción...")
+    from stt_utils import WhisperSTT, get_stt_backend
     
-    from faster_whisper import WhisperModel
+    log_progress("stt", 10, f"Cargando modelo de transcripción ({get_stt_backend()})...")
     
     # Usar modelo tiny.en para inglés (más rápido), tiny para otros idiomas
     model_name = "tiny.en" if language == "en" else "tiny"
-    model = WhisperModel(model_name, device="cpu", compute_type="int8")
+    stt = WhisperSTT(model_name=model_name, language=language)
+    stt.load()
     
     log_progress("stt", 20, f"Transcribiendo audio en {SUPPORTED_LANGUAGES.get(language, language)}...")
     
-    # Transcribir con beam_size=1 (greedy) para máxima velocidad en RPi4
-    segments, info = model.transcribe(
-        audio_path,
-        language=language,
-        beam_size=1,
-        best_of=1,
-        vad_filter=True,
-        vad_parameters=dict(min_silence_duration_ms=500)
-    )
+    result = stt.transcribe(audio_path)
     
-    # Procesar segmentos en streaming (sin cargar todo en memoria)
-    full_text = ""
-    segments_data = []
-    segment_count = 0
+    full_text = result["text"]
+    segments_data = result["segments"]
     
-    for segment in segments:  # Generator, no list
-        segment_count += 1
-        full_text += segment.text + " "
-        segments_data.append({
-            "start": segment.start,
-            "end": segment.end,
-            "text": segment.text.strip()
-        })
-        # Reportar progreso cada 10 segmentos
-        if segment_count % 10 == 0:
-            progress = 20 + min(50, segment_count // 2)
-            log_progress("stt", progress, f"Procesando segmento {segment_count}...")
-    
-    full_text = full_text.strip()
     log_progress("stt", 70, f"Transcripción completada: {len(full_text)} caracteres, {len(segments_data)} segmentos")
     
     # Liberar memoria
-    del model
+    del stt
     
     return full_text, segments_data
 

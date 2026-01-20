@@ -282,17 +282,19 @@
             <div class="p-6 overflow-y-auto max-h-[60vh]">
                 <input type="hidden" id="voice-episode-id" value="">
                 
+                <p class="text-gray-500 text-xs mb-4">Voces Piper TTS (100% offline)</p>
+                
                 <!-- España -->
                 <div class="mb-6">
                     <h4 class="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
                         <span>🇪🇸</span> España
                     </h4>
                     <div class="grid grid-cols-2 gap-3">
-                        <button type="button" onclick="selectVoice('es-ES-AlvaroNeural')" class="voice-option" data-voice="es-ES-AlvaroNeural">
-                            <span class="voice-gender">♂</span> Álvaro
+                        <button type="button" onclick="selectVoice('es_ES-davefx')" class="voice-option" data-voice="es_ES-davefx">
+                            <span class="voice-gender">♂</span> David
                         </button>
-                        <button type="button" onclick="selectVoice('es-ES-ElviraNeural')" class="voice-option" data-voice="es-ES-ElviraNeural">
-                            <span class="voice-gender female">♀</span> Elvira
+                        <button type="button" onclick="selectVoice('es_ES-mls_10246')" class="voice-option" data-voice="es_ES-mls_10246">
+                            <span class="voice-gender female">♀</span> María
                         </button>
                     </div>
                 </div>
@@ -303,41 +305,11 @@
                         <span>🇲🇽</span> México
                     </h4>
                     <div class="grid grid-cols-2 gap-3">
-                        <button type="button" onclick="selectVoice('es-MX-JorgeNeural')" class="voice-option" data-voice="es-MX-JorgeNeural">
-                            <span class="voice-gender">♂</span> Jorge
+                        <button type="button" onclick="selectVoice('es_MX-ald')" class="voice-option" data-voice="es_MX-ald">
+                            <span class="voice-gender">♂</span> Alejandro
                         </button>
-                        <button type="button" onclick="selectVoice('es-MX-DaliaNeural')" class="voice-option" data-voice="es-MX-DaliaNeural">
-                            <span class="voice-gender female">♀</span> Dalia
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Argentina -->
-                <div class="mb-6">
-                    <h4 class="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
-                        <span>🇦🇷</span> Argentina
-                    </h4>
-                    <div class="grid grid-cols-2 gap-3">
-                        <button type="button" onclick="selectVoice('es-AR-TomasNeural')" class="voice-option" data-voice="es-AR-TomasNeural">
-                            <span class="voice-gender">♂</span> Tomás
-                        </button>
-                        <button type="button" onclick="selectVoice('es-AR-ElenaNeural')" class="voice-option" data-voice="es-AR-ElenaNeural">
-                            <span class="voice-gender female">♀</span> Elena
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Colombia -->
-                <div class="mb-6">
-                    <h4 class="text-sm font-medium text-gray-400 mb-3 flex items-center gap-2">
-                        <span>🇨🇴</span> Colombia
-                    </h4>
-                    <div class="grid grid-cols-2 gap-3">
-                        <button type="button" onclick="selectVoice('es-CO-GonzaloNeural')" class="voice-option" data-voice="es-CO-GonzaloNeural">
-                            <span class="voice-gender">♂</span> Gonzalo
-                        </button>
-                        <button type="button" onclick="selectVoice('es-CO-SalomeNeural')" class="voice-option" data-voice="es-CO-SalomeNeural">
-                            <span class="voice-gender female">♀</span> Salomé
+                        <button type="button" onclick="selectVoice('es_MX-claude')" class="voice-option" data-voice="es_MX-claude">
+                            <span class="voice-gender female">♀</span> Claudia
                         </button>
                     </div>
                 </div>
@@ -706,16 +678,16 @@
         }
 
         // Voice Selection Modal
-        let selectedVoice = 'es-ES-AlvaroNeural';
+        let selectedVoice = 'es_ES-davefx';
         const voiceModal = document.getElementById('voice-modal');
         const voiceEpisodeIdInput = document.getElementById('voice-episode-id');
         
         function openVoiceModal(episodeId) {
             voiceEpisodeIdInput.value = episodeId;
-            selectedVoice = 'es-ES-AlvaroNeural'; // Reset to default
+            selectedVoice = 'es_ES-davefx'; // Reset to default
             // Reset visual selection
             document.querySelectorAll('.voice-option').forEach(btn => btn.classList.remove('selected'));
-            document.querySelector('.voice-option[data-voice="es-ES-AlvaroNeural"]').classList.add('selected');
+            document.querySelector('.voice-option[data-voice="es_ES-davefx"]').classList.add('selected');
             voiceModal.classList.remove('hidden');
         }
         
@@ -933,7 +905,7 @@
         }
 
         // Translation Functions
-        async function startTranslation(episodeId, voice = 'es-ES-AlvaroNeural') {
+        async function startTranslation(episodeId, voice = 'es_ES-davefx') {
             try {
                 const response = await fetch(`/translate/${episodeId}`, {
                     method: 'POST',

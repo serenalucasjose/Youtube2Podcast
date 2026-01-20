@@ -54,17 +54,17 @@ source venv/bin/activate
 python scripts/download_models.py
 ```
 
-> **Nota**: La primera descarga puede tardar varios minutos (~500MB en total).
+> **Nota**: La primera descarga puede tardar varios minutos (~600MB en total).
 
 Los modelos descargados son:
 | Modelo | Tamaño | Función |
 |--------|--------|---------|
 | `faster-whisper` (tiny) | ~75 MB | Speech-to-Text (multiidioma) |
 | `Helsinki-NLP/opus-mt-en-es` | ~200 MB | Traducción EN→ES |
-| `edge-tts` | N/A (online) | Text-to-Speech (español, usa Microsoft Edge) |
+| `piper-tts` (voces español) | ~250 MB | Text-to-Speech offline (voces neurales) |
 | `fpdf2` | N/A (librería) | Generación de PDFs para transcripciones |
 
-> **Nota**: `edge-tts` requiere conexión a internet ya que usa los servicios de Microsoft Edge TTS.
+> **Nota**: El TTS (Piper) funciona 100% offline. No requiere conexión a internet después de descargar los modelos.
 
 ### 4. Instalar dependencias de Node.js
 

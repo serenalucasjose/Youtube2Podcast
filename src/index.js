@@ -393,8 +393,8 @@ app.post('/translate/:id', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'El video aún no está listo' });
     }
 
-    // Obtener voz seleccionada (default: es-ES-AlvaroNeural)
-    const voice = req.body.voice || 'es-ES-AlvaroNeural';
+    // Obtener voz seleccionada (default: es_ES-davefx)
+    const voice = req.body.voice || 'es_ES-davefx';
 
     try {
         const updatedEpisode = await translationService.startTranslation(episode.id, voice);
@@ -795,7 +795,7 @@ app.post('/podcast-ia/generate', requireAuth, async (req, res) => {
         const podcastId = result.lastInsertRowid;
         
         // Start generation in background
-        generatePodcastInBackground(podcastId, category, voice || 'es-ES-AlvaroNeural', req.session.userId);
+        generatePodcastInBackground(podcastId, category, voice || 'es_ES-davefx', req.session.userId);
         
         res.redirect('/podcast-ia?success=' + encodeURIComponent('Podcast en generación. Esto puede tardar unos minutos.'));
     } catch (error) {

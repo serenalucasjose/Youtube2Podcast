@@ -112,10 +112,10 @@ function clearLogs(episodeId) {
 /**
  * Inicia el proceso de traducción para un episodio.
  * @param {number} episodeId - ID del episodio en la base de datos.
- * @param {string} voice - Nombre de la voz de Edge TTS (ej: es-MX-JorgeNeural).
+ * @param {string} voice - Nombre de la voz Piper TTS (ej: es_MX-ald, es_ES-davefx).
  * @returns {Promise<object>} - Episodio actualizado.
  */
-async function startTranslation(episodeId, voice = 'es-ES-AlvaroNeural') {
+async function startTranslation(episodeId, voice = 'es_ES-davefx') {
     const episode = db.getEpisodeById(episodeId);
     
     if (!episode) {
@@ -175,9 +175,9 @@ async function startTranslation(episodeId, voice = 'es-ES-AlvaroNeural') {
 /**
  * Ejecuta el pipeline de traducción (STT -> Traducción -> TTS).
  * @param {object} episode - Objeto del episodio.
- * @param {string} voice - Nombre de la voz de Edge TTS.
+ * @param {string} voice - Nombre de la voz Piper TTS (offline).
  */
-async function performTranslation(episode, voice = 'es-ES-AlvaroNeural') {
+async function performTranslation(episode, voice = 'es_ES-davefx') {
     const inputPath = path.join(DOWNLOADS_DIR, episode.file_path);
     // OPTIMIZACIÓN: Usar MP3 directamente (sin conversión WAV)
     // Ahorra ~600MB RAM por episodio

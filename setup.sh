@@ -351,9 +351,9 @@ step_download_models() {
     print_info "Este paso descargará los modelos de IA para traducción:"
     echo "  • faster-whisper (tiny): ~75 MB - Speech-to-Text"
     echo "  • Helsinki-NLP/opus-mt-en-es: ~200 MB - Traducción EN→ES"
-    echo "  • Verificará edge-tts para Text-to-Speech"
+    echo "  • Piper TTS (voces español): ~250 MB - Text-to-Speech (offline)"
     echo ""
-    print_warning "La descarga puede tardar varios minutos (~500MB total)"
+    print_warning "La descarga puede tardar varios minutos (~600MB total)"
     echo ""
     
     # Verificar que existe el entorno virtual

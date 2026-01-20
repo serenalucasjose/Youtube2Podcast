@@ -197,7 +197,7 @@ class AIWorkerManager extends EventEmitter {
      * @param {string} voice - Voz de Edge TTS.
      * @returns {Promise<object>} - Resultado de traducción.
      */
-    async translate(inputPath, outputPath, voice = 'es-ES-AlvaroNeural') {
+    async translate(inputPath, outputPath, voice = 'es_ES-davefx') {
         return this.sendJob({
             type: 'translate',
             input_path: inputPath,
@@ -232,7 +232,7 @@ class AIWorkerManager extends EventEmitter {
      * @param {string} voice - Voz de Edge TTS.
      * @returns {Promise<object>} - Resultado con script y ruta del audio.
      */
-    async generatePodcast(articles, outputPath, voice = 'es-ES-AlvaroNeural') {
+    async generatePodcast(articles, outputPath, voice = 'es_ES-davefx') {
         return this.sendJob({
             type: 'generate_podcast',
             articles,

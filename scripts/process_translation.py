@@ -12,13 +12,18 @@ Ejemplo:
 import sys
 import os
 import json
-import asyncio
 import argparse
 from pathlib import Path
 
 # Configuración de hilos para CPU (optimizado para Raspberry Pi 4 con 4 cores)
 os.environ.setdefault("OMP_NUM_THREADS", "4")
 os.environ.setdefault("MKL_NUM_THREADS", "4")
+
+# Importar utilidades TTS multiplataforma
+from tts_utils import (
+    get_tts_backend, synthesize_speech as tts_synthesize,
+    DEFAULT_VOICE, normalize_voice
+)
 
 def log_progress(stage: str, percent: int, message: str = ""):
     """Emite progreso en formato JSON para que Node.js lo capture."""
@@ -31,44 +36,26 @@ def log_progress(stage: str, percent: int, message: str = ""):
 
 def transcribe_audio(audio_path: str) -> str:
     """
-    Etapa 1: Speech-to-Text usando faster-whisper.
+    Etapa 1: Speech-to-Text usando faster-whisper (Linux) o openai-whisper (macOS).
     Transcribe el audio en inglés a texto.
     """
-    log_progress("stt", 10, "Cargando modelo de transcripción...")
+    from stt_utils import WhisperSTT, get_stt_backend
     
-    from faster_whisper import WhisperModel
+    log_progress("stt", 10, f"Cargando modelo de transcripción ({get_stt_backend()})...")
     
-    # Usar modelo tiny.en (optimizado para inglés, más rápido en RPi4)
-    model = WhisperModel("tiny.en", device="cpu", compute_type="int8")
+    # Usar modelo tiny.en (optimizado para inglés)
+    stt = WhisperSTT(model_name="tiny.en", language="en")
+    stt.load()
     
     log_progress("stt", 20, "Transcribiendo audio...")
     
-    # Transcribir con beam_size=1 (greedy) para máxima velocidad
-    segments, info = model.transcribe(
-        audio_path,
-        language="en",
-        beam_size=1,
-        best_of=1,
-        vad_filter=True,
-        vad_parameters=dict(min_silence_duration_ms=500)
-    )
+    result = stt.transcribe(audio_path)
+    full_text = result["text"]
     
-    # Procesar segmentos en streaming (sin cargar todo en memoria)
-    full_text = ""
-    segment_count = 0
-    
-    for segment in segments:  # Generator, no list
-        segment_count += 1
-        full_text += segment.text + " "
-        if segment_count % 10 == 0:
-            progress = 20 + min(20, segment_count // 5)
-            log_progress("stt", progress, f"Procesando segmento {segment_count}...")
-    
-    full_text = full_text.strip()
     log_progress("stt", 40, f"Transcripción completada: {len(full_text)} caracteres")
     
     # Liberar memoria
-    del model
+    del stt
     
     return full_text
 
@@ -128,31 +115,24 @@ def translate_text(text_en: str) -> str:
     
     return text_es
 
-async def synthesize_speech_async(text_es: str, output_path: str, voice: str = "es-ES-AlvaroNeural") -> None:
+def synthesize_speech(text_es: str, output_path: str, voice: str = DEFAULT_VOICE) -> None:
     """
-    Etapa 3: Text-to-Speech usando edge-tts (Microsoft Edge TTS).
-    Genera audio en español a partir del texto traducido.
+    Etapa 3: Text-to-Speech usando motor apropiado según plataforma.
+    - macOS: pyttsx3 (voces nativas del sistema)
+    - Linux: Piper TTS (modelos ONNX offline)
     
-    OPTIMIZACIÓN: Guardamos directamente como MP3 sin conversión a WAV.
-    Esto ahorra ~600MB RAM y tiempo de CPU por no cargar audio en memoria.
+    Funciona 100% offline - no requiere conexión a internet.
     """
-    log_progress("tts", 70, "Iniciando síntesis de voz...")
+    # Callback para reportar progreso
+    def progress_callback(percent: int, message: str):
+        log_progress("tts", percent, message)
     
-    import edge_tts
+    # Normalizar voz
+    voice_id = normalize_voice(voice)
+    log_progress("tts", 70, f"Iniciando síntesis ({get_tts_backend()})...")
     
-    log_progress("tts", 75, f"Generando audio con voz {voice}...")
-    
-    # edge-tts genera MP3 directamente, no necesitamos conversión
-    communicate = edge_tts.Communicate(text_es, voice)
-    
-    # Guardar directamente como MP3 (sin conversión intermedia)
-    await communicate.save(output_path)
-    
-    log_progress("tts", 98, "Audio MP3 generado correctamente")
-
-def synthesize_speech(text_es: str, output_path: str, voice: str = "es-ES-AlvaroNeural") -> None:
-    """Wrapper síncrono para la función async de TTS."""
-    asyncio.run(synthesize_speech_async(text_es, output_path, voice))
+    # Usar el módulo TTS unificado
+    tts_synthesize(text_es, output_path, voice_id, progress_callback)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -160,8 +140,8 @@ def main():
     )
     parser.add_argument("input_audio", help="Ruta al archivo de audio de entrada (MP3/WAV)")
     parser.add_argument("output_audio", help="Ruta al archivo de audio de salida (MP3)")
-    parser.add_argument("--voice", default="es-ES-AlvaroNeural", 
-                        help="Voz de Edge TTS a usar (ej: es-MX-JorgeNeural)")
+    parser.add_argument("--voice", default=DEFAULT_VOICE, 
+                        help="Voz TTS a usar (ej: es_MX-ald, es_ES-davefx)")
     
     args = parser.parse_args()
     

@@ -1,0 +1,9 @@
+# Dependencias para macOS (Apple Silicon compatible)
+-r requirements-base.txt
+
+# STT compatible con macOS
+openai-whisper
+
+# TTS offline para macOS (usa voces nativas del sistema)
+pyttsx3
+pyobjc

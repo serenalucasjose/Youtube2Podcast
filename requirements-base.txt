@@ -1,0 +1,11 @@
+# Dependencias base - funcionan en todas las plataformas
+torch
+numpy
+scipy
+transformers
+sentencepiece
+sacremoses
+pydub
+fpdf2
+# Reemplazo de audioop para Python 3.13+ (usado por pydub)
+audioop-lts

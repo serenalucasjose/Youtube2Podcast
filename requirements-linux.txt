@@ -1,0 +1,9 @@
+# Dependencias adicionales para Linux/Raspberry Pi
+# Incluye paquetes optimizados para CPU/ARM
+-r requirements-base.txt
+
+# STT optimizado para CPU
+faster-whisper
+
+# TTS offline (requiere onnxruntime)
+piper-tts
