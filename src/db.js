@@ -56,6 +56,9 @@ if (!columnNames.includes('transcription_status')) {
 if (!columnNames.includes('transcription_file_path')) {
     db.exec("ALTER TABLE episodes ADD COLUMN transcription_file_path TEXT");
 }
+if (!columnNames.includes('is_public')) {
+    db.exec("ALTER TABLE episodes ADD COLUMN is_public INTEGER DEFAULT 0");
+}
 
 // Create push subscriptions table
 db.exec(`
@@ -336,6 +339,34 @@ module.exports = {
   },
   deleteGeneratedPodcast: (id) => {
       return db.prepare('DELETE FROM generated_podcasts WHERE id = ?').run(id);
+  },
+
+  // Public Episodes (Community Feed)
+  getPublicEpisodes: ({ limit = 50, offset = 0 } = {}) => {
+      return db.prepare(`
+          SELECT e.*, u.username as owner_username 
+          FROM episodes e 
+          LEFT JOIN users u ON e.user_id = u.id 
+          WHERE e.is_public = 1 AND e.status = 'ready'
+          ORDER BY e.created_at DESC
+          LIMIT ? OFFSET ?
+      `).all(limit, offset);
+  },
+  getPublicEpisodesCount: () => {
+      return db.prepare("SELECT COUNT(*) as count FROM episodes WHERE is_public = 1 AND status = 'ready'").get().count;
+  },
+  toggleEpisodePublicStatus: (id, userId) => {
+      // First verify ownership
+      const episode = db.prepare('SELECT * FROM episodes WHERE id = ? AND user_id = ?').get(id, userId);
+      if (!episode) {
+          return null; // Not found or not owned by user
+      }
+      const newStatus = episode.is_public ? 0 : 1;
+      db.prepare('UPDATE episodes SET is_public = ? WHERE id = ?').run(newStatus, id);
+      return { ...episode, is_public: newStatus };
+  },
+  setEpisodePublicStatus: (id, isPublic) => {
+      return db.prepare('UPDATE episodes SET is_public = ? WHERE id = ?').run(isPublic ? 1 : 0, id);
   },
 
   // Admin Stats for Dashboard

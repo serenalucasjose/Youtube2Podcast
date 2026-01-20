@@ -660,6 +660,64 @@ app.get('/api/episode/:id/card', requireAuth, (req, res) => {
     });
 });
 
+// ===============================
+// COMMUNITY (PUBLIC FEED) ROUTES
+// ===============================
+
+// Community: Public Feed (no auth required)
+app.get('/community', (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30;
+    const offset = (page - 1) * limit;
+    
+    const episodes = db.getPublicEpisodes({ limit, offset });
+    const totalCount = db.getPublicEpisodesCount();
+    const totalPages = Math.ceil(totalCount / limit);
+    
+    res.render('community', {
+        episodes,
+        currentPage: page,
+        totalPages,
+        totalCount,
+        user: req.session.username || null,
+        userId: req.session.userId || null,
+        isAdmin: req.session.role === 'admin' || false
+    });
+});
+
+// API: Toggle Episode Public Status
+app.post('/api/episode/:id/toggle-public', requireAuth, (req, res) => {
+    const episodeId = req.params.id;
+    
+    // Admin can toggle any episode
+    if (req.session.role === 'admin') {
+        const episode = db.getEpisodeById(episodeId);
+        if (!episode) {
+            return res.status(404).json({ error: 'Episodio no encontrado' });
+        }
+        const newStatus = episode.is_public ? 0 : 1;
+        db.setEpisodePublicStatus(episodeId, newStatus);
+        return res.json({ 
+            success: true, 
+            is_public: newStatus,
+            message: newStatus ? 'Episodio ahora es público' : 'Episodio ahora es privado'
+        });
+    }
+    
+    // Regular users can only toggle their own episodes
+    const result = db.toggleEpisodePublicStatus(episodeId, req.session.userId);
+    
+    if (!result) {
+        return res.status(403).json({ error: 'No autorizado o episodio no encontrado' });
+    }
+    
+    res.json({ 
+        success: true, 
+        is_public: result.is_public,
+        message: result.is_public ? 'Episodio ahora es público' : 'Episodio ahora es privado'
+    });
+});
+
 // API: Get Episode Logs (for translation progress)
 app.get('/api/episode/:id/logs', requireAuth, (req, res) => {
     const episode = db.getEpisodeById(req.params.id);

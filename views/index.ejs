@@ -94,6 +94,10 @@
                     <span>Podcast IA</span>
                     <span class="ml-auto text-xs bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">Nuevo</span>
                 </a>
+                <a href="/community" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <i class="bi bi-globe text-lg text-green-500"></i>
+                    <span>Comunidad</span>
+                </a>
             </div>
             
             <% if (typeof isAdmin !== 'undefined' && isAdmin) { %>
@@ -154,12 +158,25 @@
                     </button>
                     <span id="timer-badge" class="hidden text-[8px] bg-orange-500 text-white rounded px-1 py-0.5 font-medium"></span>
                     
+                    <!-- Community Link -->
+                    <a href="/community" class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs sm:text-sm text-green-500 hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 font-medium transition-colors" title="Comunidad">
+                        <i class="bi bi-globe" style="font-size: 1rem; color: currentColor;"></i>
+                        <span class="hidden sm:inline">Comunidad</span>
+                    </a>
+                    
                     <!-- Podcast IA Link - Visible on all screens -->
                     <a href="/podcast-ia" class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs sm:text-sm text-purple-500 hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 font-medium transition-colors" title="Podcast IA">
                         <i class="bi bi-mic-fill" style="font-size: 1rem; color: currentColor;"></i>
                         <span class="hidden sm:inline">Podcast IA</span>
                         <span class="hidden sm:inline text-[10px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">Nuevo</span>
                     </a>
+                    
+                    <!-- Chromecast Button -->
+                    <button id="cast-btn" class="cast-btn hidden" title="Transmitir a dispositivo">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+                        </svg>
+                    </button>
                     
                     <!-- User info and actions -->
                     <div class="flex items-center gap-1 sm:gap-2 ml-1 sm:ml-2 pl-1 sm:pl-2 border-l border-gray-300 dark:border-gray-600">
@@ -258,7 +275,7 @@
         <% } else { %>
             <div id="episodesGrid">
                 <% episodes.forEach(episode => { %>
-                    <%- include('partials/episode_card', { episode }) %>
+                    <%- include('partials/episode_card', { episode, communityView: false, currentUserId: null }) %>
                 <% }); %>
             </div>
         <% } %>
@@ -1588,6 +1605,68 @@
         themeToggleBtn.addEventListener('click', toggleTheme);
         mobileThemeToggle.addEventListener('click', toggleTheme);
         
+        // === PUBLIC TOGGLE FUNCTION ===
+        async function togglePublicStatus(checkbox, episodeId) {
+            const label = checkbox.closest('.public-toggle-label');
+            const switchEl = label.querySelector('.public-toggle-switch');
+            const textEl = label.querySelector('.public-toggle-text');
+            const icon = textEl.querySelector('i');
+            
+            try {
+                const response = await fetch(`/api/episode/${episodeId}/toggle-public`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Update UI based on response
+                    if (data.is_public) {
+                        switchEl.classList.add('active');
+                        textEl.classList.remove('text-gray-500');
+                        textEl.classList.add('text-green-400');
+                        icon.classList.remove('bi-lock');
+                        icon.classList.add('bi-globe');
+                        label.title = 'Público - visible en comunidad';
+                    } else {
+                        switchEl.classList.remove('active');
+                        textEl.classList.remove('text-green-400');
+                        textEl.classList.add('text-gray-500');
+                        icon.classList.remove('bi-globe');
+                        icon.classList.add('bi-lock');
+                        label.title = 'Privado - solo tú puedes verlo';
+                    }
+                    
+                    // Show toast notification
+                    showToast(data.message, 'success');
+                } else {
+                    // Revert checkbox state on error
+                    checkbox.checked = !checkbox.checked;
+                    showToast(data.error || 'Error al cambiar visibilidad', 'error');
+                }
+            } catch (err) {
+                console.error('Toggle public error:', err);
+                checkbox.checked = !checkbox.checked;
+                showToast('Error de conexión', 'error');
+            }
+        }
+        
+        // Toast notification helper
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600';
+            toast.className = `fixed bottom-4 left-1/2 transform -translate-x-1/2 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-[10000] flex items-center gap-2`;
+            toast.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${message}`;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.transition = 'opacity 0.5s';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
+        }
+        
         // === Mobile Walk Mode ===
         const mobileWalkModeBtn = document.getElementById('mobile-walk-mode-btn');
         mobileWalkModeBtn.addEventListener('click', () => {
@@ -1626,5 +1705,10 @@
             mobileTimerBadge.textContent = '';
         };
     </script>
+    
+    <!-- Google Cast SDK -->
+    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+    <!-- Chromecast Integration -->
+    <script src="/js/cast.js?v=<%= appVersion %>"></script>
 </body>
 </html>
